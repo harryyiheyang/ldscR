@@ -8,11 +8,10 @@
   data(SASLDSC)
 }
 \format{
-  A data frame with 3 variables:
+  A data frame with 2 variables:
     \describe{
       \item{SNP}{SNP identifier.}
-      \item{LDSC.R}{LD score calculated from the sample LD matrix.}
-      \item{LDSC.P}{LD score calculated from the POET estimate.}
+      \item{LDSC}{LD score calculated from the sample LD matrix.}
     }
 }
 \source{
