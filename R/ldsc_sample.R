@@ -1,78 +1,103 @@
+#' Estimate Heritability and Genetic Correlation Matrix Using LDSC estimated from sample LD matrix estimate
+#'
+#' The \code{ldsc_sample} function estimates heritability and genetic correlation matrices using Linkage Disequilibrium Score Regression (LDSC). It processes GWAS summary statistics, harmonizes alleles with a reference panel, and computes genetic covariance and error covariance matrices.
+#'
+#' @param GWAS_List A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
+#' @param LDSC A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.
+#'
+#' @return A list containing the following elements:
+#' \itemize{
+#'   \item{GCovEst}{Estimated genetic covariance matrix.}
+#'   \item{GCovSE}{Standard errors of the estimated genetic covariance matrix.}
+#'   \item{ECovEst}{Estimated error covariance matrix.}
+#'   \item{ECovSE}{Standard errors of the estimated error covariance matrix.}
+#' }
+#'
+#' @examples
+#' data(hapmap3)
+#' data(EURLDSC)
+#' ref_panel <- hapmap3
+#' LDSC <- EURLDSC
+#' results <- ldsc_sample(GWAS_List, ref_panel, LDSC)
+#'
+#' @details The \code{ldsc_sample} function is designed for advanced genetic statistics and requires a good understanding of GWAS summary statistics, LDSC methodology, and statistical genetics. Users should ensure that input data is correctly formatted and that they understand the implications of the estimates produced by the function.
+#'
+#' @export
 ldsc_sample=function(GWAS_List,LDSC){
-############################# Basic Information ###############################
-NAM=names(GWAS_List)
-p=length(GWAS_List)
-ZMatrix=data.frame(SNP=GWAS_List[[1]]$SNP)
-for(i in 1:p){
-A=GWAS_List[[i]]
-ZMatrix=cbind(ZMatrix,A$Zscore)
-}
-names(ZMatrix)=c("SNP",NAM)
-NMatrix=data.frame(SNP=GWAS_List[[1]]$SNP)
-for(i in 1:p){
-A=GWAS_List[[i]]
-NMatrix=cbind(NMatrix,A$N)
-}
-names(NMatrix)=c("SNP",NAM)
-row.names(NMatrix)=row.names(ZMatrix)=ZMatrix$SNP
-SNPInfo=GWAS_List[[1]][,c("SNP","CHR")]
+  ############################# Basic Information ###############################
+  NAM=names(GWAS_List)
+  p=length(GWAS_List)
+  ZMatrix=data.frame(SNP=GWAS_List[[1]]$SNP)
+  for(i in 1:p){
+  A=GWAS_List[[i]]
+  ZMatrix=cbind(ZMatrix,A$Zscore)
+  }
+  names(ZMatrix)=c("SNP",NAM)
+  NMatrix=data.frame(SNP=GWAS_List[[1]]$SNP)
+  for(i in 1:p){
+  A=GWAS_List[[i]]
+  NMatrix=cbind(NMatrix,A$N)
+  }
+  names(NMatrix)=c("SNP",NAM)
+  row.names(NMatrix)=row.names(ZMatrix)=ZMatrix$SNP
+  SNPInfo=GWAS_List[[1]][,c("SNP","CHR")]
 
-snplist=intersect(SNPInfo$SNP,LDSC$SNP)
-ZMatrix1=ZMatrix[snplist,]
-NMatrix1=NMatrix[snplist,]
-LDSC1=LDSC[snplist,]
-M=length(snplist)
-############################# initial estimator ####################################
-t1=Sys.time()
-GCovEst1=GCovSE1=ECovEst1=ECovSE1=diag(p)*0
-for(i in 1:p){
-for(j in 1:p){
-z=ZMatrix1[,i+1]*ZMatrix1[,j+1]
-l=LDSC1$LDSC.R*sqrt(NMatrix1[,i+1]/M)*sqrt(NMatrix1[,i+1]/M)
-fit0=lm(z~l)
-summary0=summary(fit0)
-GCovEst1[i,j]=GCovEst1[j,i]=summary0$coefficients[2,1]
-ECovEst1[i,j]=ECovEst1[j,i]=summary0$coefficients[1,1]
-GCovSE1[i,j]=GCovSE1[j,i]=summary0$coefficients[2,2]^2
-ECovSE1[i,j]=ECovSE1[j,i]=summary0$coefficients[1,2]^2
-}
-}
-t1=Sys.time()-t1
-print("Initial Genetic Covariance Estimate")
-print(t1)
-############################ reweight for efficiency ##################################
-t2=Sys.time()
-GCovEst=GCovSE=ECovEst=ECovSE=diag(p)*0
-for(i in 1:p){
-z=ZMatrix1[,i+1]*ZMatrix1[,i+1]
-l=LDSC1$LDSC.R*NMatrix1[,i+1]/M
-w=(1+l*GCovEst[i,i])^2
-fit0=lm(z~l,weights=1/w)
-summary0=summary(fit0)
-GCovEst[i,i]=summary0$coefficients[2,1]
-ECovEst[i,i]=summary0$coefficients[1,1]
-GCovSE[i,i]=summary0$coefficients[2,2]
-ECovSE[i,i]=summary0$coefficients[1,2]
-}
+  snplist=intersect(SNPInfo$SNP,LDSC$SNP)
+  ZMatrix1=ZMatrix[snplist,]
+  NMatrix1=NMatrix[snplist,]
+  LDSC1=LDSC[snplist,]
+  M=length(snplist)
+  ############################# initial estimator ####################################
+  t1=Sys.time()
+  GCovEst1=GCovSE1=ECovEst1=ECovSE1=diag(p)*0
+  for(i in 1:p){
+  for(j in 1:p){
+  z=ZMatrix1[,i+1]*ZMatrix1[,j+1]
+  l=LDSC1$LDSC.R*sqrt(NMatrix1[,i+1]/M)*sqrt(NMatrix1[,i+1]/M)
+  fit0=lm(z~l)
+  summary0=summary(fit0)
+  GCovEst1[i,j]=GCovEst1[j,i]=summary0$coefficients[2,1]
+  ECovEst1[i,j]=ECovEst1[j,i]=summary0$coefficients[1,1]
+  GCovSE1[i,j]=GCovSE1[j,i]=summary0$coefficients[2,2]^2
+  ECovSE1[i,j]=ECovSE1[j,i]=summary0$coefficients[1,2]^2
+  }
+  }
+  t1=Sys.time()-t1
+  print("Initial Genetic Covariance Estimate")
+  print(t1)
+  ############################ reweight for efficiency ##################################
+  t2=Sys.time()
+  GCovEst=GCovSE=ECovEst=ECovSE=diag(p)*0
+  for(i in 1:p){
+  z=ZMatrix1[,i+1]*ZMatrix1[,i+1]
+  l=LDSC1$LDSC.R*NMatrix1[,i+1]/M
+  w=(1+l*GCovEst[i,i])^2
+  fit0=lm(z~l,weights=1/w)
+  summary0=summary(fit0)
+  GCovEst[i,i]=summary0$coefficients[2,1]
+  ECovEst[i,i]=summary0$coefficients[1,1]
+  GCovSE[i,i]=summary0$coefficients[2,2]
+  ECovSE[i,i]=summary0$coefficients[1,2]
+  }
 
-for(i in 1:(p-1)){
-for(j in (i+1):p){
-z=ZMatrix1[,i+1]*ZMatrix1[,j+1]
-l=LDSC1$LDSC.R*sqrt(NMatrix1[,i+1]/M)*sqrt(NMatrix1[,i+1]/M)
-li=LDSC1$LDSC.R*NMatrix1[,i+1]/M
-lj=LDSC1$LDSC.R*NMatrix1[,j+1]/M
-w=(1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2
-fit0=lm(z~l,weights=1/w)
-summary0=summary(fit0)
-GCovEst[i,j]=GCovEst[j,i]=summary0$coefficients[2,1]
-ECovEst[i,j]=ECovEst[j,i]=summary0$coefficients[1,1]
-GCovSE[i,j]=GCovSE[j,i]=summary0$coefficients[2,2]
-ECovSE[i,j]=ECovSE[j,i]=summary0$coefficients[1,2]
-}
-}
-t2=Sys.time()-t2
-print("Final Genetic Covariance Estimate")
-print(t2)
-row.names(GCovEst)=colnames(GCovSE)=row.names(ECovEst)=colnames(ECovSE)=NAM
-return(A=list(GCovEst=GCovEst,GCovSE=GCovSE,ECovEst=ECovEst,ECovSE=ECovEst,stage1.time=t1,stage2.time=t2))
+  for(i in 1:(p-1)){
+  for(j in (i+1):p){
+  z=ZMatrix1[,i+1]*ZMatrix1[,j+1]
+  l=LDSC1$LDSC.R*sqrt(NMatrix1[,i+1]/M)*sqrt(NMatrix1[,i+1]/M)
+  li=LDSC1$LDSC.R*NMatrix1[,i+1]/M
+  lj=LDSC1$LDSC.R*NMatrix1[,j+1]/M
+  w=(1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2
+  fit0=lm(z~l,weights=1/w)
+  summary0=summary(fit0)
+  GCovEst[i,j]=GCovEst[j,i]=summary0$coefficients[2,1]
+  ECovEst[i,j]=ECovEst[j,i]=summary0$coefficients[1,1]
+  GCovSE[i,j]=GCovSE[j,i]=summary0$coefficients[2,2]
+  ECovSE[i,j]=ECovSE[j,i]=summary0$coefficients[1,2]
+  }
+  }
+  t2=Sys.time()-t2
+  print("Final Genetic Covariance Estimate")
+  print(t2)
+  row.names(GCovEst)=colnames(GCovSE)=row.names(ECovEst)=colnames(ECovSE)=NAM
+  return(A=list(GCovEst=GCovEst,GCovSE=GCovSE,ECovEst=ECovEst,ECovSE=ECovEst,stage1.time=t1,stage2.time=t2))
 }

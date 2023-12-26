@@ -1,3 +1,20 @@
+#' Filter and Align GWAS Data to a Reference Panel
+#'
+#' The \code{filterss} function processes a list of GWAS summary statistics data frames, harmonizes alleles according to a reference panel, removes duplicates, and aligns data to common SNPs. It's used to prepare data for further analysis such as LDSC.
+#'
+#' @param gwas_data_list A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
+#' @param ref_panel A data.frame containing the reference panel data. It must include columns for SNP, A1, and A2.
+#'
+#' @return A list of data.frames, each corresponding to an input GWAS summary statistics data frame, but filtered, harmonized, and aligned to the common SNPs found across all data frames.
+#'
+#' @examples
+#' # Assuming GWAS_List and ref_panel are already defined:
+#' filtered_data <- filterss(GWAS_List, ref_panel)
+#'
+#' @details The function performs several key steps: adjusting alleles according to a reference panel, removing duplicate SNPs, and aligning all GWAS data frames to a set of common SNPs. This is often a necessary preprocessing step before performing genetic correlation and heritability analyses.
+#'
+#' @export
+
 filterss <- function(gwas_data_list, ref_panel) {
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)

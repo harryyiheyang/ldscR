@@ -14,6 +14,7 @@ url <- "http://tinyurl.com/5dszcsfz"
 dest_file <- "GWAS_List.rds"
 download.file(url, destfile = dest_file, mode = "wb")
 gwas_list <- readRDS(dest_file)
+file.remove(dest_file)
 GWAS_AFR=gwas_list[c(1,5,9,13)]
 GWAS_EAS=gwas_list[c(1,5,9,13)+1]
 GWAS_EUR=gwas_list[c(1,5,9,13)+2]
