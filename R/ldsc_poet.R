@@ -23,7 +23,7 @@
 #' @details The \code{ldsc_poet} function is designed for advanced genetic statistics and requires a good understanding of GWAS summary statistics, LDSC methodology, and statistical genetics. Users should ensure that input data is correctly formatted and that they understand the implications of the estimates produced by the function.
 #'
 #' @importFrom stats lm
-#' @importFrom data.table setDT setkey
+#' @importFrom data.table setDT setkey copy
 #' @export
 #'
 ldsc_poet=function(GWAS_List,LDSC){
