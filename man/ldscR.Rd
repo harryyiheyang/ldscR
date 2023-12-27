@@ -4,6 +4,7 @@
 \alias{ldscR}
 \title{Estimate Heritability and Genetic Correlation Matrix Using LDSC estimated from sample LD matrix estimate}
 \usage{
+<<<<<<< HEAD
 ldscR(
   GWAS_List,
   LDSC,
@@ -11,17 +12,23 @@ ldscR(
   intercept.upper = 1.1,
   h2.upper = 0.8
 )
+=======
+ldscR(GWAS_List, LDSC)
+>>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
 }
 \arguments{
 \item{GWAS_List}{A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).}
 
 \item{LDSC}{A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.}
+<<<<<<< HEAD
 
 \item{intercept.lower}{The lower boundary of the intercept estimate in heritability estimation.}
 
 \item{intercept.upper}{The upper boundary of the intercept estimate in heritability estimation.}
 
 \item{h2.upper}{The upper boundary of the heritability estimate in heritability estimation.}
+=======
+>>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
 }
 \value{
 A list containing the following elements:

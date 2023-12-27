@@ -4,9 +4,12 @@
 #'
 #' @param GWAS_List A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
 #' @param LDSC A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.
+<<<<<<< HEAD
 #' @param intercept.lower The lower boundary of the intercept estimate in heritability estimation.
 #' @param intercept.upper The upper boundary of the intercept estimate in heritability estimation.
 #' @param h2.upper The upper boundary of the heritability estimate in heritability estimation.
+=======
+>>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
 #'
 #' @return A list containing the following elements:
 #' \itemize{
@@ -27,11 +30,18 @@
 #'
 #' @importFrom stats lm
 #' @importFrom data.table setDT setkey copy setnames
+<<<<<<< HEAD
 #' @importFrom nloptr nloptr
 #'
 #' @export
 #'
 ldscR=function(GWAS_List,LDSC,intercept.lower=0.9,intercept.upper=1.1,h2.upper=0.8){
+=======
+#'
+#' @export
+#'
+ldscR=function(GWAS_List,LDSC){
+>>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
@@ -83,6 +93,7 @@ ldscR=function(GWAS_List,LDSC,intercept.lower=0.9,intercept.upper=1.1,h2.upper=0
   ############################ reweight for efficiency ##################################
   t2=Sys.time()
   GCovEst=GCovSE=ECovEst=ECovSE=diag(p)*0
+<<<<<<< HEAD
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
@@ -106,6 +117,20 @@ ldscR=function(GWAS_List,LDSC,intercept.lower=0.9,intercept.upper=1.1,h2.upper=0
     ECovEst[i,i]=beta[1]
     GCovSE[i,i]=sqrt(H[2,2])
     ECovSE[i,i]=sqrt(H[1,1])
+=======
+  for(i in 1:p){
+    z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
+    l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
+    w=(1+l*GCovEst[i,i])
+    w[w>2*median(w)]=2*median(w)
+    w=w^2
+    fit0=lm(z~l,weights=1/w)
+    summary0=summary(fit0)
+    GCovEst[i,i]=summary0$coefficients[2,1]
+    ECovEst[i,i]=summary0$coefficients[1,1]
+    GCovSE[i,i]=summary0$coefficients[2,2]
+    ECovSE[i,i]=summary0$coefficients[1,2]
+>>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
   }
 
   for(i in 1:(p-1)){

@@ -1,0 +1,7 @@
+for(i in 1:16){
+A=gwas_list[[i]]
+A$A1.x=A$A2.x=NULL
+A$P=as.numeric(A$P)
+gwas_list[[i]]=A
+}
+saveRDS(gwas_list,"C:/Users/12163/Downloads/GWAS_List.rds",compress=T)
