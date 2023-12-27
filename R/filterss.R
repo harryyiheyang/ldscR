@@ -16,10 +16,12 @@
 #' @export
 
 filterss <- function(gwas_data_list, ref_panel) {
+  
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)
   for (i in 1:p) {
     A <- gwas_data_list[[i]]
+    A <- as.data.frame(A)
     A <- allele_harmonise(ref_panel = ref_panel, gwas_data = A)
     A$SNP <- as.character(A$SNP)
     gwas_data_list[[i]] <- A
