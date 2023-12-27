@@ -1,0 +1,16 @@
+demissing=function(M,rowthres=0.5,colthres=0.5,rowfirst=T){
+  M1=is.na(M)
+  if(rowfirst==T){
+    M2=rowMeans(M1)
+    ind1=which(M2<=rowthres)
+    M2=colMeans(M1[ind1,])
+    ind2=which(M2<=colthres)
+  }else{
+    M2=colMeans(M1)
+    ind2=which(M2<=colthres)
+    M2=rowMeans(M1[,ind2])
+    ind1=which(M2<=rowthres)
+  }
+  M3=M[ind1,ind2]
+  return(M3)
+}

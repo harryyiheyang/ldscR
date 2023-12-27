@@ -1,0 +1,8 @@
+data("PCSK9")
+data("hapmap3")
+data("EURLDSC")
+PCSK9=merge_union(gwas_data_list=PCSK9,ref_panel=hapmap3,missing.thres=0.9)
+Boundary=list(intercept.lower=0.5,intercept.upper=1.5,h2.upper=0.95,gcov.lower=-0.95,gcov.upper=0.95,ecov.lower=-0.95,ecov.upper=0.95)
+fitPCSK9=local_ldscR(GWAS_List=PCSK9$gwas_data_list,LDSC=EURLDSC,Boundary=Boundary)
+corrplot(fitPCSK9$GCovEst,method="color",is.corr=F,addCoef.col = "black",tl.cex=0.5)
+corrplot(fitPCSK9$ECovEst,method="color",is.corr=F,addCoef.col = "black",tl.cex=0.5)

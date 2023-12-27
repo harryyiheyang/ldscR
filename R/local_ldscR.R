@@ -1,6 +1,6 @@
-#' Estimate Heritability and Genetic Correlation Matrix Using LDSC estimated from sample LD matrix estimate
+#' Estimate Heritability and Genetic Correlation Matrix Using LDSC estimated from sample LD matrix estimate in a genome region.
 #'
-#' The \code{ldscR} function estimates heritability and genetic correlation matrices using Linkage Disequilibrium Score Regression (LDSC). It processes GWAS summary statistics, harmonizes alleles with a reference panel, and computes genetic covariance and error covariance matrices.
+#' The \code{local_ldscR} function estimates heritability and genetic correlation matrices using Linkage Disequilibrium Score Regression (LDSC). It processes GWAS summary statistics, harmonizes alleles with a reference panel, and computes genetic covariance and error covariance matrices.
 #'
 #' @param GWAS_List A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
 #' @param LDSC A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.
@@ -23,9 +23,9 @@
 #' data(EURLDSC)
 #' ref_panel <- hapmap3
 #' LDSC <- EURLDSC
-#' results <- ldscR(GWAS_List,LDSC)
+#' results <- local_ldscR(GWAS_List,LDSC)
 #'
-#' @details The \code{ldscR} function is designed for advanced genetic statistics and requires a good understanding of GWAS summary statistics, LDSC methodology, and statistical genetics. Users should ensure that input data is correctly formatted and that they understand the implications of the estimates produced by the function.
+#' @details The \code{local_ldscR} function is designed for advanced genetic statistics and requires a good understanding of GWAS summary statistics, LDSC methodology, and statistical genetics. Users should ensure that input data is correctly formatted and that they understand the implications of the estimates produced by the function. The definition of genetic correlation is from Zhao and Zhu (2022).
 #'
 #' @importFrom stats lm
 #' @importFrom data.table setDT setkey copy setnames
@@ -33,8 +33,9 @@
 #'
 #' @export
 #'
+#' @references Zhao B, Zhu H. On genetic correlation estimation with summary statistics from genome-wide association studies. Journal of the American Statistical Association. 2022 Jan 2;117(537):1-1.
 #'
-ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.eps=0.001){
+local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,min.eps=0.001){
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
@@ -77,8 +78,12 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
 
   for(i in 1:p){
+    ind = which(ZMatrix1[[col_names[i+1]]]!=0)
+    M1 = length(ind)
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
-    l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
+    l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M1) * sqrt(NMatrix1[[col_names[i+1]]]/M1)
+    l = l[ind]
+    z = z[ind]
     z[which(z>zsquare_thresh)] = zsquare_thresh
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
@@ -99,9 +104,13 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
     for(j in (i+1):p){
+      ind = union(which(ZMatrix1[[col_names[i+1]]]!=0),which(ZMatrix1[[col_names[j+1]]]!=0))
+      M1 = length(M1)
       z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[j+1]]]
+      l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M1) * sqrt(NMatrix1[[col_names[j+1]]]/M1)
+      z = z[ind]
+      l = l[ind]
       z[which(abs(z)>cov_thresh)] = sign(z[which(abs(z)>cov_thresh)]) * cov_thresh
-      l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       X=cbind(1,l)
       a=c(sqrt(ECovEst1[i,i]*ECovEst1[j,j]),sqrt(GCovEst1[i,i]*GCovEst1[j,j]))
       result <- nloptr(x0 = c(0,0),
@@ -135,10 +144,15 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
 
   for(i in 1:p){
+    ind = which(ZMatrix1[[col_names[i+1]]]!=0)
+    M1 = length(ind)
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
-    z[which(z>zsquare_thresh)] = zsquare_thresh
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w=1/(1+l*GCovEst11[i,i])^2
+    w = 1/(1+l*GCovEst11[i,i])^2
+    l = l[ind]
+    z = z[ind]
+    w = w[ind]
+    z[which(z>zsquare_thresh)] = zsquare_thresh
     fit0=lm(z~l-1,weights=w)
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
@@ -159,12 +173,19 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
     for(j in (i+1):p){
+      ind = union(which(ZMatrix1[[col_names[i+1]]]!=0),which(ZMatrix1[[col_names[j+1]]]!=0))
+      M1 = length(M1)
       z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[j+1]]]
-      z[which(abs(z)>cov_thresh)] = sign(z[which(abs(z)>cov_thresh)]) * cov_thresh
       l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
       w=1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
+      z = z[ind]
+      l = l[ind]
+      li = li[ind]
+      lj = lj[ind]
+      w = w[ind]
+      z[which(abs(z)>cov_thresh)] = sign(z[which(abs(z)>cov_thresh)]) * cov_thresh
       z1=z-ECovEst11[i,j]
       fit0=lm(z1~l-1,weights=w)
       X=cbind(1,l)

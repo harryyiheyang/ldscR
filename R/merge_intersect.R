@@ -1,6 +1,6 @@
 #' Filter and Align GWAS Data to a Reference Panel
 #'
-#' The \code{filterss} function processes a list of GWAS summary statistics data frames, harmonizes alleles according to a reference panel, removes duplicates, and aligns data to common SNPs. It's used to prepare data for further analysis such as LDSC.
+#' The \code{merge_intersect} function processes a list of GWAS summary statistics data frames, harmonizes alleles according to a reference panel, removes duplicates, and aligns data to common SNPs. It's used to prepare data for further analysis such as LDSC.
 #'
 #' @param gwas_data_list A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
 #' @param ref_panel A data.frame containing the reference panel data. It must include columns for SNP, A1, and A2.
@@ -9,13 +9,13 @@
 #'
 #' @examples
 #' # Assuming GWAS_List and ref_panel are already defined:
-#' filtered_data <- filterss(GWAS_List, ref_panel)
+#' GWAS_List <- merge_intersect(GWAS_List, ref_panel)
 #'
 #' @details The function performs several key steps: adjusting alleles according to a reference panel, removing duplicate SNPs, and aligning all GWAS data frames to a set of common SNPs. This is often a necessary preprocessing step before performing genetic correlation and heritability analyses.
-#'
+#' @importFrom data.table setDT
 #' @export
 
-filterss <- function(gwas_data_list, ref_panel) {
+merge_intersect <- function(gwas_data_list, ref_panel) {
 
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)
@@ -23,7 +23,6 @@ filterss <- function(gwas_data_list, ref_panel) {
     A <- gwas_data_list[[i]]
     A <- setDT(A)
     A <- allele_harmonise(ref_panel = ref_panel, gwas_data = A)
-    A$SNP <- as.character(A$SNP)
     gwas_data_list[[i]] <- A
   }
 

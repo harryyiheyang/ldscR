@@ -34,6 +34,6 @@ GWAS_EUR=filterss(gwas_data_list=GWAS_EUR,ref_panel=hapmap3)
 
 #fitAFR1=ldscR(GWAS_List=GWAS_AFR,LDSC=AFRLDSC,intercept.lower=0.95,intercept.upper=1.05)
 #fitEAS1=ldscR(GWAS_List=GWAS_EAS,LDSC=EASLDSC,intercept.lower=0.95,intercept.upper=1.05)
-fitEUR1=ldscR(GWAS_List=GWAS_EUR,LDSC=EURLDSC,intercept.lower=0.95,intercept.upper=1.05)
+fitEUR1=ldscR(GWAS_List=GWAS_EUR,LDSC=EURLDSC)
 #fitSAS1=ldscR(GWAS_List=GWAS_SAS,LDSC=SASLDSC,intercept.lower=0.95,intercept.upper=1.05)
 
