@@ -19,9 +19,6 @@ colnames(merged_data)[which(names(merged_data) == "A1.y")] <- "A1"
 colnames(merged_data)[which(names(merged_data) == "A2.y")] <- "A2"
 colnames(merged_data)[which(names(merged_data) == "A1.x")] <- "A1.orginal"
 colnames(merged_data)[which(names(merged_data) == "A2.x")] <- "A2.orginal"
-# Convert A1 and A2 to uppercase
-merged_data$A1 <- toupper(merged_data$A1)
-merged_data$A2 <- toupper(merged_data$A2)
 
 return(merged_data)
 }
