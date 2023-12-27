@@ -83,7 +83,7 @@ ldscR=function(GWAS_List,LDSC){
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
     w=(1+l*GCovEst[i,i])
-    w[w>3*median(w)]=3*median(w)
+    w[w>2*median(w)]=2*median(w)
     w=w^2
     fit0=lm(z~l,weights=1/w)
     summary0=summary(fit0)
@@ -100,7 +100,7 @@ ldscR=function(GWAS_List,LDSC){
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
       w=sqrt((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2)
-      w[w>3*median(w)]=3*median(w)
+      w[w>2*median(w)]=2*median(w)
       w=w^2
       fit0=lm(z~l,weights=1/w)
       summary0=summary(fit0)
