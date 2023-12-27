@@ -16,7 +16,7 @@
 #' @export
 
 filterss <- function(gwas_data_list, ref_panel) {
-  
+
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)
   for (i in 1:p) {

@@ -4,13 +4,9 @@
 #'
 #' @param GWAS_List A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).
 #' @param LDSC A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.
-<<<<<<< HEAD
 #' @param intercept.lower The lower boundary of the intercept estimate in heritability estimation.
 #' @param intercept.upper The upper boundary of the intercept estimate in heritability estimation.
 #' @param h2.upper The upper boundary of the heritability estimate in heritability estimation.
-=======
->>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
-#'
 #' @return A list containing the following elements:
 #' \itemize{
 #'   \item{GCovEst}{Estimated genetic covariance matrix.}
@@ -24,24 +20,18 @@
 #' data(EURLDSC)
 #' ref_panel <- hapmap3
 #' LDSC <- EURLDSC
-#' results <- ldscR(GWAS_List, ref_panel, LDSC)
+#' results <- ldscR(GWAS_List, LDSC)
 #'
 #' @details The \code{ldscR} function is designed for advanced genetic statistics and requires a good understanding of GWAS summary statistics, LDSC methodology, and statistical genetics. Users should ensure that input data is correctly formatted and that they understand the implications of the estimates produced by the function.
 #'
 #' @importFrom stats lm
 #' @importFrom data.table setDT setkey copy setnames
-<<<<<<< HEAD
 #' @importFrom nloptr nloptr
 #'
 #' @export
 #'
+#'
 ldscR=function(GWAS_List,LDSC,intercept.lower=0.9,intercept.upper=1.1,h2.upper=0.8){
-=======
-#'
-#' @export
-#'
-ldscR=function(GWAS_List,LDSC){
->>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
@@ -93,7 +83,6 @@ ldscR=function(GWAS_List,LDSC){
   ############################ reweight for efficiency ##################################
   t2=Sys.time()
   GCovEst=GCovSE=ECovEst=ECovSE=diag(p)*0
-<<<<<<< HEAD
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
@@ -102,7 +91,7 @@ ldscR=function(GWAS_List,LDSC){
   for(i in 1:p){
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w=1/(1+l*GCovEst[i,i])
+    w=1/(1+l*GCovEst[i,i])^2
     fit0=lm(z~l,weights=w)
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
@@ -117,20 +106,6 @@ ldscR=function(GWAS_List,LDSC){
     ECovEst[i,i]=beta[1]
     GCovSE[i,i]=sqrt(H[2,2])
     ECovSE[i,i]=sqrt(H[1,1])
-=======
-  for(i in 1:p){
-    z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
-    l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w=(1+l*GCovEst[i,i])
-    w[w>2*median(w)]=2*median(w)
-    w=w^2
-    fit0=lm(z~l,weights=1/w)
-    summary0=summary(fit0)
-    GCovEst[i,i]=summary0$coefficients[2,1]
-    ECovEst[i,i]=summary0$coefficients[1,1]
-    GCovSE[i,i]=summary0$coefficients[2,2]
-    ECovSE[i,i]=summary0$coefficients[1,2]
->>>>>>> 22010f36f6745d2aa268e6c6c8c61b28157382f6
   }
 
   for(i in 1:(p-1)){
@@ -139,9 +114,7 @@ ldscR=function(GWAS_List,LDSC){
       l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
-      w=sqrt((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2)
-      w[w>2*median(w)]=2*median(w)
-      w=w^2
+      w=(1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2
       fit0=lm(z~l,weights=1/w)
       summary0=summary(fit0)
       GCovEst[i,j]=GCovEst[j,i]=summary0$coefficients[2,1]
