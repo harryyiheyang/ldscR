@@ -69,7 +69,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   ############################# initial estimator ####################################
   t1=Sys.time()
   col_names = names(ZMatrix1)
-  GCovEst1 = GCovSE1 = ECovEst1 = ECovSE1 = diag(p)*0
+  GCovEst1 = ECovEst1 = diag(p)*0
   objective <- function(beta) {
     sum((z - X %*% beta)^2)
   }
@@ -87,12 +87,8 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                      ub = upper_bounds,
                      opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
     beta=result$solution
-    vare=var(c(z-X%*%beta))
-    H=solve(t(X)%*%X)*vare
     GCovEst1[i,i]=beta[2]
     ECovEst1[i,i]=beta[1]
-    GCovSE1[i,i]=sqrt(H[2,2])
-    ECovSE1[i,i]=sqrt(H[1,1])
   }
 
   lower_bounds <- c(Boundary$ecov.lower, Boundary$gcov.lower)
@@ -110,12 +106,8 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                        ub = upper_bounds*a,
                        opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
       beta=result$solution
-      vare=var(c(z-X%*%beta))
-      H=solve(t(X)%*%X)*vare
       GCovEst1[i,j]=GCovEst1[j,i]=beta[2]
       ECovEst1[i,j]=ECovEst1[j,i]=beta[1]
-      GCovSE1[i,j]=GCovSE1[j,i]=sqrt(H[2,2])
-      ECovSE1[i,j]=ECovSE1[j,i]=sqrt(H[1,1])
     }
   }
   t1=Sys.time()-t1
@@ -124,7 +116,6 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
 
   ############################ reweight for efficiency ##################################
   t2=Sys.time()
-
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
@@ -138,8 +129,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     z[which(z>zsquare_thresh)] = zsquare_thresh
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w=1/(1+l*GCovEst11[i,i])^2
-    fit0=lm(z~l-1,weights=w)
+    w = 1/(1+l*GCovEst11[i,i])^2
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
                      eval_f = objective,
@@ -147,8 +137,10 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                      ub = upper_bounds,
                      opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
     beta=result$solution
-    vare=var(c(z-X%*%beta)*sqrt(w))
-    H=solve(t(X)%*%(X*sqrt(w)))*vare
+    vare=c(z-X%*%beta)*w
+    vare=vare^2
+    H=solve(t(X)%*%(X*w))
+    H=H%*%(t(X)%*%(X*vare))%*%H
     GCovEst[i,i]=beta[2]
     ECovEst[i,i]=beta[1]
     GCovSE[i,i]=sqrt(H[2,2])
@@ -164,9 +156,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
       l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
-      w=1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
-      z1=z-ECovEst11[i,j]
-      fit0=lm(z1~l-1,weights=w)
+      w = 1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
       X=cbind(1,l)
       a=c(sqrt(ECovEst[i,i]*ECovEst[j,j]),sqrt(GCovEst[i,i]*GCovEst[j,j]))
       result <- nloptr(x0 = c(ECovEst11[i,j],GCovEst11[i,j])*0.5,
@@ -175,15 +165,16 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                        ub = upper_bounds*a,
                        opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
       beta=result$solution
-      vare=var(c(z-X%*%beta)*sqrt(w))
-      H=solve(t(X)%*%(X*sqrt(w)))*vare
+      vare=c(z-X%*%beta)*w
+      vare=vare^2
+      H=solve(t(X)%*%(X*w))
+      H=H%*%(t(X)%*%(X*vare))%*%H
+      GCovSE[i,j]=GCovSE[j,i]=sqrt(H[2,2])
+      ECovSE[i,j]=GCovSE[j,i]=sqrt(H[1,1])
       GCovEst[i,j]=GCovEst[j,i]=beta[2]
       ECovEst[i,j]=ECovEst[j,i]=beta[1]
-      GCovSE[i,j]=GCovSE[j,i]=sqrt(H[2,2])
-      ECovSE[i,j]=ECovSE[j,i]=sqrt(H[1,1])
     }
   }
-
   t2=Sys.time()-t2
   print("Final Genetic Covariance Estimate")
   print(t2)
@@ -193,8 +184,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   row.names(GCovEst)=colnames(GCovEst)=row.names(ECovEst)=colnames(ECovEst)=NAM
   row.names(GCovSE)=colnames(GCovSE)=row.names(ECovSE)=colnames(ECovSE)=NAM
   row.names(GCovEst1)=colnames(GCovEst1)=row.names(ECovEst1)=colnames(ECovEst1)=NAM
-  row.names(GCovSE1)=colnames(GCovSE1)=row.names(ECovSE1)=colnames(ECovSE1)=NAM
-  Estimate.ini=list(GCovEst=GCovEst1,GCovSE=GCovSE1,ECovEst=ECovEst1,ECovSE=ECovEst1)
+  Estimate.ini=list(GCovEst=GCovEst1,ECovEst=ECovEst1)
   Computing.time=list(stage1.time=t0,stage2.time=t1,stage3.time=t2)
-  return(A=list(GCovEst=GCovEst,GCovSE=GCovSE,ECovEst=ECovEst,ECovSE=ECovEst,Estimate.ini=Estimate.ini,Computing.time=Computing.time))
+  return(A=list(GCovEst=GCovEst,GCovSE=GCovSE,ECovEst=ECovEst,ECovSE=ECovSE,Estimate.ini=Estimate.ini,Computing.time=Computing.time))
 }
