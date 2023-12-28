@@ -27,10 +27,12 @@ data("EURLDSC")
 #data("SASLDSC")
 data("hapmap3")
 
+t1=Sys.time()
 #GWAS_AFR=filterss(gwas_data_list=GWAS_AFR,ref_panel=hapmap3)
 #GWAS_SAS=filterss(gwas_data_list=GWAS_SAS,ref_panel=hapmap3)
-GWAS_EUR=filterss(gwas_data_list=GWAS_EUR,ref_panel=hapmap3)
+GWAS_EUR=merge_intersect(gwas_data_list=GWAS_EUR,ref_panel=hapmap3)
 #GWAS_EAS=filterss(gwas_data_list=GWAS_EAS,ref_panel=hapmap3)
+t1=Sys.time()-t1
 
 #fitAFR1=ldscR(GWAS_List=GWAS_AFR,LDSC=AFRLDSC,intercept.lower=0.95,intercept.upper=1.05)
 #fitEAS1=ldscR(GWAS_List=GWAS_EAS,LDSC=EASLDSC,intercept.lower=0.95,intercept.upper=1.05)

@@ -23,7 +23,7 @@ if(length(exposure_remove)>0){
 updated_gwas_data_list <- lapply(gwas_data_list, function(df) {
   df <- df[df$SNP %in% snplist, ]
   df$Zscore[is.na(df$Zscore)] <- 0
-  df$N[is.na(df$N)] <- 1
+  df$N[is.na(df$N)] <- median(df$N[!is.na(df$N)])
   return(df)
 })
 
