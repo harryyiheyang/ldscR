@@ -138,7 +138,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                      opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
     beta=result$solution
     vare=c(z-X%*%beta)
-    vare=vare^2*w
+    vare=vare^2*w^2
     H=solve(t(X)%*%(X*w))
     H=H%*%(t(X)%*%(X*vare))%*%H
     GCovEst[i,i]=beta[2]
@@ -166,7 +166,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                        opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
       beta=result$solution
       vare=c(z-X%*%beta)
-      vare=vare^2*w
+      vare=vare^2*w^2
       H=solve(t(X)%*%(X*w))
       H=H%*%(t(X)%*%(X*vare))%*%H
       GCovSE[i,j]=GCovSE[j,i]=sqrt(H[2,2])
