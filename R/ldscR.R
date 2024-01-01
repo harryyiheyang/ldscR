@@ -129,7 +129,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     z[which(z>zsquare_thresh)] = zsquare_thresh
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w = 1/(1+l*GCovEst11[i,i])^2
+    w = 1/(1+l*GCovEst11[i,i])
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
                      eval_f = objective,
@@ -156,7 +156,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
       l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
-      w = 1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
+      w = 1/sqrt((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
       X=cbind(1,l)
       a=c(sqrt(ECovEst[i,i]*ECovEst[j,j]),sqrt(GCovEst[i,i]*GCovEst[j,j]))
       result <- nloptr(x0 = c(ECovEst11[i,j],GCovEst11[i,j])*0.5,
