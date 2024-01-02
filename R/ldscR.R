@@ -137,9 +137,10 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                      ub = upper_bounds,
                      opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
     beta=result$solution
-    vare=c(z-X%*%beta)
-    vare=mean(vare^2)
-    H=vare*solve(t(X)%*%(X*w))
+    vare=c(z-X%*%beta)^2
+    V=t(X)%*%(X*vare*w)
+    H=solve(t(X)%*%(X*w))
+    H=H%*%V%*%H
     GCovEst[i,i]=beta[2]
     ECovEst[i,i]=beta[1]
     GCovSE[i,i]=sqrt(H[2,2])
@@ -164,11 +165,12 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
                        ub = upper_bounds*a,
                        opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
       beta=result$solution
-      vare=c(z-X%*%beta)
-      vare=mean(vare^2)
-      H=vare*solve(t(X)%*%(X*w))
+      vare=c(z-X%*%beta)^2
+      V=t(X)%*%(X*vare*w)
+      H=solve(t(X)%*%(X*w))
+      H=H%*%V%*%H
       GCovSE[i,j]=GCovSE[j,i]=sqrt(H[2,2])
-      ECovSE[i,j]=GCovSE[j,i]=sqrt(H[1,1])
+      ECovSE[i,j]=ECovSE[j,i]=sqrt(H[1,1])
       GCovEst[i,j]=GCovEst[j,i]=beta[2]
       ECovEst[i,j]=ECovEst[j,i]=beta[1]
     }
