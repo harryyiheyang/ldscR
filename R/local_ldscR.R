@@ -36,7 +36,7 @@
 #' @references Zhao B, Zhu H. On genetic correlation estimation with summary statistics from genome-wide association studies. Journal of the American Statistical Association. 2022 Jan 2;117(537):1-1.
 #'
 local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,min.eps=0.001){
-
+  
   ############################# Basic Information ###############################
   t0 = Sys.time()
   GWAS_List_dt = lapply(GWAS_List, setDT)
@@ -61,12 +61,12 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   M = length(snplist)
   rm(ZMatrix, NMatrix, LDSC_dt, snplist)
   if(Boundary[1]==F){
-    Boundary=list(intercept.lower=0.95,intercept.upper=1.05,h2.upper=0.95,gcov.lower=-0.95,gcov.upper=0.95,ecov.lower=-0.95,ecov.upper=0.95)
+    Boundary=list(intercept.lower=0.95,intercept.upper=1.05,h2.lower=0.005,h2.upper=0.95,gcov.lower=-0.95,gcov.upper=0.95,ecov.lower=-0.95,ecov.upper=0.95)
   }
   t0 = Sys.time() - t0
   print("Processing data")
   print(t0)
-
+  
   ############################# initial estimator ####################################
   t1=Sys.time()
   col_names = names(ZMatrix1)
@@ -74,9 +74,9 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   objective <- function(beta) {
     sum((z - X %*% beta)^2)
   }
-  lower_bounds <- c(Boundary$intercept.lower, 0)
+  lower_bounds <- c(Boundary$intercept.lower, Boundary$h2.lower)
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
-
+  
   for(i in 1:p){
     ind = which(ZMatrix1[[col_names[i+1]]]!=0)
     M1 = length(ind)
@@ -99,7 +99,7 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
     GCovSE1[i,i]=sqrt(H[2,2])
     ECovSE1[i,i]=sqrt(H[1,1])
   }
-
+  
   lower_bounds <- c(Boundary$ecov.lower, Boundary$gcov.lower)
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
@@ -130,10 +130,10 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   t1=Sys.time()-t1
   print("Initial Genetic Covariance Estimate")
   print(t1)
-
+  
   ############################ reweight for efficiency ##################################
   t2=Sys.time()
-
+  
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
@@ -142,7 +142,7 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   GCovEst11 <- positive_adj(GCovEst1,min.eps=min.eps)
   lower_bounds <- c(Boundary$intercept.lower, 0)
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
-
+  
   for(i in 1:p){
     ind = which(ZMatrix1[[col_names[i+1]]]!=0)
     M1 = length(ind)
@@ -168,7 +168,7 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
     GCovSE[i,i]=sqrt(H[2,2])
     ECovSE[i,i]=sqrt(H[1,1])
   }
-
+  
   lower_bounds <- c(Boundary$ecov.lower, Boundary$gcov.lower)
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
@@ -204,11 +204,11 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
       ECovSE[i,j]=ECovSE[j,i]=sqrt(H[1,1])
     }
   }
-
+  
   t2=Sys.time()-t2
   print("Final Genetic Covariance Estimate")
   print(t2)
-
+  
   GCovEst=positive_adj(GCovEst,min.eps=min.eps)
   ECovEst=positive_adj(ECovEst,min.eps=min.eps)
   row.names(GCovEst)=colnames(GCovEst)=row.names(ECovEst)=colnames(ECovEst)=NAM
@@ -219,3 +219,4 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   Computing.time=list(stage1.time=t0,stage2.time=t1,stage3.time=t2)
   return(A=list(GCovEst=GCovEst,GCovSE=GCovSE,ECovEst=ECovEst,ECovSE=ECovEst,Estimate.ini=Estimate.ini,Computing.time=Computing.time))
 }
+
