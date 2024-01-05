@@ -140,7 +140,7 @@ local_ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=50,cov_thresh=50,m
   GCovEst = GCovSE = ECovEst = ECovSE = diag(p)*0
   ECovEst11 <- positive_adj(cov2cor(ECovEst1),min.eps=min.eps)
   GCovEst11 <- positive_adj(GCovEst1,min.eps=min.eps)
-  lower_bounds <- c(Boundary$intercept.lower, 0)
+  lower_bounds <- c(Boundary$intercept.lower, Boundary$h2.lower)
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
   
   for(i in 1:p){
