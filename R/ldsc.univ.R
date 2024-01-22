@@ -32,7 +32,9 @@ ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=200,sampling.t
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
+  LDSC$order=1:nrow(LDSC)
   gwas=merge(gwas,LDSC,by="SNP")
+  gwas <- gwas[order(gwas$Order), ]
   M=nrow(gwas)
   if(Boundary[1]==F){
     Boundary=list(intercept.lower=0.95,intercept.upper=1.05,h2.upper=0.95)
