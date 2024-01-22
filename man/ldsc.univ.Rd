@@ -4,7 +4,15 @@
 \alias{ldsc.univ}
 \title{Single-Variate Linkage Disequilibrium Score Regression (LDSC)}
 \usage{
-ldsc.univ(gwas, LDSC, Boundary = F, zsquare_thresh = 500, nblock = 500)
+ldsc.univ(
+  gwas,
+  LDSC,
+  Boundary = F,
+  zsquare_thresh = 500,
+  nblock = 200,
+  sampling.time = 200,
+  sampling.ratio = 0.5
+)
 }
 \arguments{
 \item{gwas}{A data.frame containing GWAS summary statistics for a single trait. The data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).}
@@ -16,6 +24,10 @@ ldsc.univ(gwas, LDSC, Boundary = F, zsquare_thresh = 500, nblock = 500)
 \item{zsquare_thresh}{A threshold for the squared Z-scores in heritability estimation to control for extreme values.}
 
 \item{nblock}{The number of blocks for bootstrap-based standard error estimation.}
+
+\item{sampling.time}{The number of block bootstrap.}
+
+\item{sampling.ratio}{The sub-sampling ratio in each bootstrap.}
 
 \item{min.eps}{A small positive value to ensure numerical stability in calculations.}
 }

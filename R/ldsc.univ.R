@@ -8,6 +8,8 @@
 #' @param zsquare_thresh A threshold for the squared Z-scores in heritability estimation to control for extreme values.
 #' @param min.eps A small positive value to ensure numerical stability in calculations.
 #' @param nblock The number of blocks for bootstrap-based standard error estimation.
+#' @param sampling.time The number of block bootstrap.
+#' @param sampling.ratio The sub-sampling ratio in each bootstrap.
 #' @return A data.frame containing heritability estimates and their standard errors, along with the intercept and its standard error.
 #'
 #' @examples
@@ -26,11 +28,11 @@
 #'
 #' @export
 #'
-ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=500){
+ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=200,sampling.time=200,sampling.ratio=0.5){
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
-  gwas=merge(gwas,LDSC,by="SNp")
+  gwas=merge(gwas,LDSC,by="SNP")
   M=nrow(gwas)
   if(Boundary[1]==F){
     Boundary=list(intercept.lower=0.95,intercept.upper=1.05,h2.upper=0.95)
@@ -69,9 +71,6 @@ ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=500){
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
-  lower_bounds <- c(Boundary$intercept.lower, 0)
-  upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
-
   z = gwas$Zscore^2
   l = gwas$LDSC*gwas$N/M
   z[which(z>zsquare_thresh)] = zsquare_thresh
@@ -86,26 +85,40 @@ ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=500){
   h2=beta[2]
   intercept=beta[1]
   t2=Sys.time()-t2
-  print("Final Genetic Covariance Estimate")
+  print("Heritability Estimation")
   print(t2)
 
+  t3=Sys.time()
+  objective <- function(beta) {
+    sum((z1 - X1 %*% beta)^2*w1)
+  }
+  w = 1/(1+l*h2)^2
   blockind=block.generate(M,nblock)
-  h2.vec=intercept.vec=c(1:nblock)
-  for(i in 1:nblock){
-  ind=c(blockind$start[i]:blockind$end[i])
-  ind=setdiff(1:M,ind)
+  h2.vec=intercept.vec=c(1:sampling.time)
+  for(i in 1:sampling.time){
+  indblock=sample(nblock,nblock*sampling.ratio)
+  ind=NULL
+  for(j in 1:length(indblock)){
+  ind=c(ind,c(blockind$start[indblock[j]]:blockind$end[indblock[j]]))
+  }
   z1=z[ind]
   l1=l[ind]
-  w=w[ind]
-  X=cbind(1,l)
-  result <- nloptr(x0 = c(intercept.ini,h2.ini),
+  w1=w[ind]
+  X1=cbind(1,l1)
+  result <- nloptr(x0 = c(intercept,h2),
                    eval_f = objective,
                    lb = lower_bounds,
                    ub = upper_bounds,
                    opts = list("algorithm"="NLOPT_LN_BOBYQA","maxeval"=100))
+  beta=result$solution
   h2.vec[i]=beta[2]
   intercept.vec[i]=beta[1]
   }
-  return(A=data.frame(intercept=intercept,intercept.se=sd(intercept.vec),h2=h2,h2.se=sd(h2.vec)))
+  t3=Sys.time()-t3
+  print("Standard Error Estimation")
+  print(t3)
+  intercept.se=sqrt(mean((intercept.vec-intercept)^2))
+  h2.se=sqrt(mean((h2.vec-h2)^2))
+  return(A=data.frame(intercept=intercept,intercept.se=intercept.se,h2=h2,h2.se=h2.se))
 }
 
