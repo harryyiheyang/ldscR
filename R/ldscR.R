@@ -34,7 +34,7 @@
 #' @export
 #'
 #'
-ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.eps=0.001){
+ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300){
 
   ############################# Basic Information ###############################
   t0 = Sys.time()

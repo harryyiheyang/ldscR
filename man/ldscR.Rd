@@ -4,14 +4,7 @@
 \alias{ldscR}
 \title{Estimate Heritability and Genetic Correlation Matrix Using LDSC estimated from sample LD matrix estimate}
 \usage{
-ldscR(
-  GWAS_List,
-  LDSC,
-  Boundary = F,
-  zsquare_thresh = 500,
-  cov_thresh = 300,
-  min.eps = 0.001
-)
+ldscR(GWAS_List, LDSC, Boundary = F, zsquare_thresh = 500, cov_thresh = 300)
 }
 \arguments{
 \item{GWAS_List}{A list of data.frames where each data.frame contains GWAS summary statistics for a trait. Each data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N), effect allele (A1), and reference allele (A2).}
