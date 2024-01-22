@@ -117,6 +117,8 @@ ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=200,sampling.t
   t3=Sys.time()-t3
   print("Standard Error Estimation")
   print(t3)
-  return(A=data.frame(intercept=intercept,intercept.se=sd(intercept.vec),h2=h2,h2.se=sd(h2.vec)))
+  intercept.se=sqrt(mean((intercept.vec-intercept)^2))
+  h2.se=sqrt(mean((h2.vec-h2)^2))
+  return(A=data.frame(intercept=intercept,intercept.se=intercept.se,h2=h2,h2.se=h2.se))
 }
 
