@@ -35,7 +35,7 @@
 #'
 #'
 ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.eps=0.001){
-  
+
   ############################# Basic Information ###############################
   t0 = Sys.time()
   GWAS_List_dt = lapply(GWAS_List, setDT)
@@ -65,7 +65,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   t0 = Sys.time() - t0
   print("Processing data")
   print(t0)
-  
+
   ############################# initial estimator ####################################
   t1=Sys.time()
   col_names = names(ZMatrix1)
@@ -75,7 +75,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   }
   lower_bounds <- c(Boundary$intercept.lower, 0)
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
-  
+
   for(i in 1:p){
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
@@ -90,7 +90,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
     GCovEst1[i,i]=beta[2]
     ECovEst1[i,i]=beta[1]
   }
-  
+
   lower_bounds <- c(Boundary$ecov.lower, Boundary$gcov.lower)
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
@@ -113,23 +113,21 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   t1=Sys.time()-t1
   print("Initial Genetic Covariance Estimate")
   print(t1)
-  
+
   ############################ reweight for efficiency ##################################
   t2=Sys.time()
   objective <- function(beta) {
     sum((z - X %*% beta)^2*w)
   }
   GCovEst = GCovSE = ECovEst = ECovSE = diag(p)*0
-  ECovEst11 <- positive_adj(cov2cor(ECovEst1),min.eps=min.eps)
-  GCovEst11 <- positive_adj(GCovEst1,min.eps=min.eps)
   lower_bounds <- c(Boundary$intercept.lower, 0)
   upper_bounds <- c(Boundary$intercept.upper, Boundary$h2.upper)
-  
+
   for(i in 1:p){
     z = ZMatrix1[[col_names[i+1]]] * ZMatrix1[[col_names[i+1]]]
     z[which(z>zsquare_thresh)] = zsquare_thresh
     l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[i+1]]]/M)
-    w = 1/(1+l*GCovEst11[i,i])^2
+    w = 1/(1+l*GCovEst1[i,i])^2
     X=cbind(1,l)
     result <- nloptr(x0 = c(1,0.1),
                      eval_f = objective,
@@ -146,7 +144,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
     GCovSE[i,i]=sqrt(H[2,2])
     ECovSE[i,i]=sqrt(H[1,1])
   }
-  
+
   lower_bounds <- c(Boundary$ecov.lower, Boundary$gcov.lower)
   upper_bounds <- c(Boundary$ecov.upper, Boundary$gcov.upper)
   for(i in 1:(p-1)){
@@ -156,10 +154,10 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
       l = LDSC1$LDSC * sqrt(NMatrix1[[col_names[i+1]]]/M) * sqrt(NMatrix1[[col_names[j+1]]]/M)
       li = LDSC1$LDSC * NMatrix1[[col_names[i+1]]]/M
       lj = LDSC1$LDSC * NMatrix1[[col_names[j+1]]]/M
-      w = 1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst11[i,j]+ECovEst11[i,j])^2)
+      w = 1/((1+li*GCovEst[i,i])*(1+lj*GCovEst[j,j])+(l*GCovEst1[i,j]+ECovEst1[i,j])^2)
       X=cbind(1,l)
       a=c(sqrt(ECovEst[i,i]*ECovEst[j,j]),sqrt(GCovEst[i,i]*GCovEst[j,j]))
-      result <- nloptr(x0 = c(ECovEst11[i,j],GCovEst11[i,j])*0.5,
+      result <- nloptr(x0 = c(ECovEst1[i,j],GCovEst1[i,j])*0.5,
                        eval_f = objective,
                        lb = lower_bounds*a,
                        ub = upper_bounds*a,
@@ -178,9 +176,7 @@ ldscR=function(GWAS_List,LDSC,Boundary=F,zsquare_thresh=500,cov_thresh=300,min.e
   t2=Sys.time()-t2
   print("Final Genetic Covariance Estimate")
   print(t2)
-  
-  GCovEst=positive_adj(GCovEst,min.eps=min.eps)
-  ECovEst=positive_adj(ECovEst,min.eps=min.eps)
+
   row.names(GCovEst)=colnames(GCovEst)=row.names(ECovEst)=colnames(ECovEst)=NAM
   row.names(GCovSE)=colnames(GCovSE)=row.names(ECovSE)=colnames(ECovSE)=NAM
   row.names(GCovEst1)=colnames(GCovEst1)=row.names(ECovEst1)=colnames(ECovEst1)=NAM
