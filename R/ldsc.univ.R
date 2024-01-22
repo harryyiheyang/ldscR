@@ -32,7 +32,7 @@ ldsc.univ=function(gwas,LDSC,Boundary=F,zsquare_thresh=500,nblock=200,sampling.t
 
   ############################# Basic Information ###############################
   t0 = Sys.time()
-  LDSC$order=1:nrow(LDSC)
+  LDSC$Order=1:nrow(LDSC)
   gwas=merge(gwas,LDSC,by="SNP")
   gwas <- gwas[order(gwas$Order), ]
   M=nrow(gwas)
