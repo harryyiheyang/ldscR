@@ -15,17 +15,18 @@
 #' @importFrom data.table setDT
 #' @export
 
-merge_intersect <- function(gwas_data_list, ref_panel) {
+merge_intersect <- function(gwas_data_list, ref_panel, allele_match=T) {
 
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)
+  if(allele_match==T){
   for (i in 1:p) {
     A <- gwas_data_list[[i]]
     A <- setDT(A)
     A <- allele_harmonise(ref_panel = ref_panel, gwas_data = A)
     gwas_data_list[[i]] <- A
   }
-
+  }
   gwas_data_list <- lapply(gwas_data_list, function(df) {
     df <- df[!duplicated(df$SNP), ]
     return(df)
