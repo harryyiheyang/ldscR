@@ -15,10 +15,11 @@
 #' @importFrom data.table setDT data.table
 #' @export
 
-merge_union <- function(gwas_data_list, ref_panel, missing.thres = 0.8) {
+merge_union <- function(gwas_data_list, ref_panel, missing.thres = 0.8, allele_match=T) {
   print("Adjusting effect allele according to reference panel...")
   p <- length(gwas_data_list)
   NAM <- names(gwas_data_list)
+  if(allele_match==T){
   for (i in 1:p) {
     A <- gwas_data_list[[i]]
     A <- setDT(A)
@@ -26,7 +27,7 @@ merge_union <- function(gwas_data_list, ref_panel, missing.thres = 0.8) {
     A <- A[, .(SNP, Zscore, N)]
     gwas_data_list[[i]] <- A
   }
-
+  }
   print("Finding union of SNPs...")
   snp_sets <- lapply(gwas_data_list, function(df) {
     return(as.character(df$SNP))
