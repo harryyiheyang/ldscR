@@ -227,7 +227,7 @@ t3=Sys.time()-t3
 cat("Resampling for Standard Error -> ")
 print(t3)
 }else{
-GCovSE=ECovSE=0*diag(p)
+GCovSE=ECovSE=GCorSE=0*diag(p)
 t3=0
 }
 GCorEst=cov2cor(GCovEst)
