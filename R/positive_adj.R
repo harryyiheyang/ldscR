@@ -1,0 +1,11 @@
+positive_adj=function(A,min.eps=0.001){
+  a=sqrt(diag(A))
+  A=cov2cor(A)
+  fit=eigen(A)
+  d=fit$values
+  d[d<min.eps]=0
+  B=fit$vectors%*%(t(fit$vectors)*d)
+  B=cov2cor(B)
+  B=t(B*a)*a
+  return(B)
+}
