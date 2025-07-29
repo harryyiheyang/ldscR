@@ -1,0 +1,105 @@
+---
+  title: "Estimating Heritability and Genetic Covariance via LDSC"
+  author: "Your Name"
+  date: "`r Sys.Date()`"
+  output: github_document
+---
+
+## Overview
+
+This tutorial demonstrates how to perform single- and bivariate Linkage Disequilibrium Score Regression (LDSC) to estimate:
+
+- SNP heritability of two behavioral traits: **driving time** and **computer use time**;
+- Genetic and environmental covariance between them.
+
+The example uses preprocessed GWAS summary statistics, originally derived from UK Biobank questionnaires, and LD scores based on European HapMap3 reference.
+
+---
+
+## Installation and Setup
+
+```r
+devtools::install_github("harryyiheyang/ldscR")
+```
+
+## Step 1: Load Example Data
+
+```{r}
+library(devtools)
+library(dplyr)
+library(ldscR)
+data_url <- "http://tinyurl.com/nhdfwd8v"
+temp_file <- tempfile()
+download.file(data_url, temp_file, mode = "wb")
+gwaslist <- readRDS(temp_file)
+unlink(temp_file)
+
+# Load reference alleles from HapMap3
+data("hapmap3")
+```
+
+## Step 2: Align SNPs
+
+```{r}
+gwaslist <- filter_align(
+  gwas_data_list = gwaslist,
+  ref_panel = hapmap3[, c("SNP", "A1", "A2")]
+)
+```
+
+## Step 3: Estimate SNP Heritability (Univariate LDSC)
+```{r}
+fit1 <- ldsc.univ(
+  gwas = gwaslist$driving,
+  LDSC = EURLDSC,
+  nblock = 500,
+  sampling.time = 200
+)
+
+fit2 <- ldsc.univ(
+  gwas = gwaslist$computer,
+  LDSC = EURLDSC,
+  nblock = 500,
+  sampling.time = 200
+)
+
+fit1  # Heritability and intercept for driving time
+fit2  # Heritability and intercept for computer use time
+```
+
+## Step 4: Estimate Genetic Covariance (Bivariate LDSC)
+
+```{r}
+fit3 <- ldsc.bicov(
+  gwas1 = gwaslist$driving,
+  gwas2 = gwaslist$computer,
+  LDSC = EURLDSC,
+  nblock = 500,
+  sampling.time = 200,
+  h21 = fit1$h2,
+  h22 = fit2$h2
+)
+
+fit3  # Genetic and sample-overlap covariance between traits
+```
+
+## Step 5: Construct Covariance Matrices
+
+```{r}
+gcov_matrix <- matrix(
+  c(fit1$h2, fit3$gcov,
+    fit3$gcov, fit2$h2),
+  nrow = 2, byrow = TRUE,
+  dimnames = list(c("Driving", "Computer"), c("Driving", "Computer"))
+)
+
+ecov_matrix <- matrix(
+  c(fit1$intercept, fit3$ecov,
+    fit3$ecov, fit2$intercept),
+  nrow = 2, byrow = TRUE,
+  dimnames = list(c("Driving", "Computer"), c("Driving", "Computer"))
+)
+
+gcov_matrix
+ecov_matrix
+```
