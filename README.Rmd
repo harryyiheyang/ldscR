@@ -1,8 +1,8 @@
 ---
-  title: "Estimating Heritability and Genetic Covariance via LDSC"
-  author: "Your Name"
-  date: "`r Sys.Date()`"
-  output: github_document
+title: "Estimating Heritability and Genetic Covariance via LDSC"
+author: "Yihe Yang (yxy1234@case.edu)"
+date: ""
+output: github_document
 ---
 
 ## Overview
