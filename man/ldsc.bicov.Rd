@@ -2,27 +2,62 @@
 % Please edit documentation in R/ldsc.bicov.R
 \name{ldsc.bicov}
 \alias{ldsc.bicov}
-\title{Single-Variate Linkage Disequilibrium Score Regression (LDSC)}
+\title{Bivariate LD Score Regression (LDSC) for Cross‑Trait Genetic Covariance}
 \usage{
 ldsc.bicov(gwas1, gwas2, h21, h22, LDSC, nblock = 500, sampling.time = 0)
 }
 \arguments{
-\item{gwas1}{A data.frame containing gwas summary statistics for the first trait. The data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N).}
+\item{gwas1}{A `data.frame`/`data.table` of GWAS summary statistics for trait 1.
+Required columns:
+\itemize{
+  \item `SNP` — SNP identifier
+  \item `Zscore` — Z‑score of the SNP–trait association
+  \item `N` — per‑SNP sample size
+}}
 
-\item{gwas2}{A data.frame containing gwas summary statistics for the second trait. The data.frame should include columns for SNP identifiers, Z-scores of effect size estimates, sample sizes (N).}
+\item{gwas2}{A `data.frame`/`data.table` of GWAS summary statistics for trait 2,
+with the same required columns as `gwas1`.}
 
-\item{LDSC}{A data.frame containing LD Score Regression (LDSC) estimates. It should include LDSC scores and other necessary metrics for the analysis.}
+\item{h21}{Numeric. Heritability estimate of trait 1 (used in weights).}
 
-\item{nblock}{The number of blocks for bootstrap-based standard error estimation.}
+\item{h22}{Numeric. Heritability estimate of trait 2 (used in weights).}
 
-\item{sampling.time}{The number of block bootstrap. If sampling.time=0, only genetic covariance estimate will be returned.}
+\item{LDSC}{A `data.frame`/`data.table` containing LD scores. Required columns:
+\itemize{
+  \item `SNP` — SNP identifier
+  \item `LDSC` — LD score
+}}
+
+\item{nblock}{Integer. Number of blocks for block bootstrap.}
+
+\item{sampling.time}{Integer. Number of bootstrap replicates. If `0`, only
+point estimates are returned.}
 }
 \value{
-A data.frame containing genetic covariance estimates and their standard errors, along with the estimation error covariance estimate and its standard error.
+A `data.frame` with:
+\itemize{
+  \item `ecov` — estimated intercept (environmental covariance)
+  \item `ecov.se` — standard error of `ecov` (bootstrap; `NA` if no bootstrap)
+  \item `gcov` — estimated genetic covariance (slope)
+  \item `gcov.se` — standard error of `gcov` (bootstrap; `NA` if no bootstrap)
+  \item `M` — number of SNPs analyzed
+}
 }
 \description{
-The `ldsc.bicov` function performs bi-variate genetic covariance using Linkage Disequilibrium Score Regression (LDSC) analysis. It is designed to estimate heritability from gwas1 summary statistics, accounting for linkage disequilibrium (LD) between SNPs. The function harmonizes gwas1 data with LD scores and applies non-linear optimization to estimate heritability.
+`ldsc.bicov` estimates the genetic covariance between two traits using
+LD Score Regression (LDSC). The function harmonizes two GWAS
+summary-statistic tables with an LD‑score table, fits a weighted least
+squares (WLS) regression of \eqn{z_{1j} z_{2j}} on the LD regressor, and
+performs one (optional) reweighting step for efficiency. Block bootstrap
+can be used to obtain standard errors.
 }
 \details{
-The `ldsc.univ` function is particularly useful for single-trait heritability analysis using LDSC. It requires well-formatted gwas1 summary statistics and an understanding of LDSC methodology. The function includes an initial estimation phase followed by a reweighting step for improved efficiency and accuracy.
+Let \eqn{M} be the number of SNPs after harmonization. The regressor is
+\eqn{\ell_j = \mathrm{LDSC}_j \sqrt{N_{1j}} \sqrt{N_{2j}} / M}. The initial
+WLS uses weights
+\deqn{w_j^{-1} = \bigl(1 + \mathrm{LDSC}_j N_{1j} h_{21} / M \bigr)
+                    \bigl(1 + \mathrm{LDSC}_j N_{2j} h_{22} / M \bigr),}
+followed by an efficiency reweighting with the mean term
+\eqn{\mu_j = \mathrm{ecov} + \mathrm{gcov} \cdot \ell_j} via
+\eqn{w_j^{-1} \leftarrow w_j^{-1} + 2 \mu_j^2}.
 }
