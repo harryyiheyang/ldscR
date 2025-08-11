@@ -69,6 +69,7 @@ ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran,
 
   # SNP overlap of GWAS only, then use that as the skeleton for all joins
   SNPintersect = intersect(gwas1$SNP, gwas2$SNP)
+  SNPintersect = intersect(SNPintersect, LDSC_Tran$SNP)
   skel = data.table::data.table(SNP = SNPintersect)
   data.table::setkey(skel, SNP)
 
