@@ -12,8 +12,8 @@ ldsc.trans(
   LDSC1,
   LDSC2,
   LDSC_Tran,
-  nblock = 500,
-  sampling.time = 0
+  sampling.time = 0,
+  nblock = 500
 )
 }
 \arguments{
@@ -53,11 +53,11 @@ for the regression regressor. Must include:
   \item \code{LDSC}: Cross-ancestry LD score
 }}
 
-\item{nblock}{Integer. Number of blocks used for block bootstrap standard error
-estimation.}
-
 \item{sampling.time}{Integer. Number of bootstrap replicates. If set to 0,
 only point estimates will be returned.}
+
+\item{nblock}{Integer. Number of blocks used for block bootstrap standard error
+estimation.}
 }
 \value{
 A data.frame with the following columns:

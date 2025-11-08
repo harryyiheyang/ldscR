@@ -4,11 +4,12 @@ temp_file <- tempfile()
 download.file(data_url, temp_file, mode="wb")
 gwaslist=readRDS(temp_file)
 unlink(temp_file)
-data("hapmap3")
-gwaslist=filter_align(gwas_data_list=gwaslist,ref_panel=hapmap3[,c("SNP","A1","A2")])
-fit1=ldsc.univ(gwas=gwaslist$driving,LDSC=EURLDSC,nblock=500,sampling.time=200)
-fit2=ldsc.univ(gwas=gwaslist$computer,LDSC=EURLDSC,nblock=500,sampling.time=200)
-fit3=ldsc.bicov(gwas1=gwaslist$driving,gwas2=gwaslist$computer,LDSC=EURLDSC,nblock=500,sampling.time=200,h21=fit1$h2,h22=fit2$h2)
+load_all()
+data("Hapmap3")
+gwaslist=filter_align(gwas_data_list=gwaslist,ref_panel=Hapmap3[,c("SNP","A1","A2")])
+fit1=ldsc.univ(gwas=gwaslist$driving,LDSC=Hapmap3_EURLDSC,nblock=500,sampling.time=200)
+fit2=ldsc.univ(gwas=gwaslist$computer,LDSC=Hapmap3_EURLDSC,nblock=500,sampling.time=200)
+fit3=ldsc.bicov(gwas1=gwaslist$driving,gwas2=gwaslist$computer,LDSC=Hapmap3_EURLDSC,nblock=500,sampling.time=200,h21=fit1$h2,h22=fit2$h2)
 fit1
 fit2
 fit3

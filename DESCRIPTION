@@ -21,5 +21,5 @@ Imports:
     data.table (>= 1.12.0),
     arrow,
     CppMatrix
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Config/testthat/edition: 3

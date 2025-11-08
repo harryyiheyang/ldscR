@@ -4,7 +4,7 @@
 \alias{ldsc.bicov}
 \title{Bivariate LD Score Regression (LDSC) for Cross‑Trait Genetic Covariance}
 \usage{
-ldsc.bicov(gwas1, gwas2, h21, h22, LDSC, nblock = 500, sampling.time = 0)
+ldsc.bicov(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500)
 }
 \arguments{
 \item{gwas1}{A `data.frame`/`data.table` of GWAS summary statistics for trait 1.
@@ -28,10 +28,10 @@ with the same required columns as `gwas1`.}
   \item `LDSC` — LD score
 }}
 
-\item{nblock}{Integer. Number of blocks for block bootstrap.}
-
 \item{sampling.time}{Integer. Number of bootstrap replicates. If `0`, only
 point estimates are returned.}
+
+\item{nblock}{Integer. Number of blocks for block bootstrap.}
 }
 \value{
 A `data.frame` with:

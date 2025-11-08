@@ -49,82 +49,113 @@
 #' @importFrom CppMatrix matrixMultiply matrixVectorMultiply
 #' @importFrom data.table setDT setkey
 #' @export
-ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, nblock = 500, sampling.time = 0) {
-  data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
+ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500) {
+data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
+data.table::setDT(gwas1); data.table::setDT(gwas2)
 
-  # --------------------------- Harmonize inputs ---------------------------
-  t0 <- Sys.time()
-  SNPintersect <- intersect(gwas1$SNP, gwas2$SNP)
-  gwas1 <- gwas1[gwas1$SNP %in% SNPintersect, ]
-  gwas2 <- gwas2[gwas2$SNP %in% SNPintersect, ]
-  gwas1 <- LDSC[gwas1, nomatch = 0]
-  gwas2 <- LDSC[gwas2, nomatch = 0]
-  M <- nrow(gwas1)
-  t0 <- Sys.time() - t0
-  print("Processing data"); print(t0)
+t0 <- Sys.time()
+SNPintersect <- intersect(intersect(gwas1$SNP, gwas2$SNP), LDSC$SNP)
+skel <- data.table::data.table(SNP = SNPintersect); data.table::setkey(skel, SNP)
 
-  # --------------------------- Helper: one WLS fit ------------------------
-  .wls_fit <- function(l, z, w) {
-    X <- cbind(1, l)
-    XtX <- CppMatrix::matrixMultiply(t(X), X * w)
-    Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
-    as.vector(solve(XtX) %*% Xty)
-  }
+#
+gwas1 <- gwas1[skel, on = "SNP", nomatch = 0]
+gwas2 <- gwas2[skel, on = "SNP", nomatch = 0]
+gwas1 <- LDSC[gwas1, on = "SNP", nomatch = 0]
+gwas2 <- LDSC[gwas2, on = "SNP", nomatch = 0]
 
-  # --------------------------- Initial estimator --------------------------
-  t1 <- Sys.time()
-  z <- gwas1$Zscore * gwas2$Zscore
-  l <- gwas1$LDSC * sqrt(gwas1$N) * sqrt(gwas2$N) / M
-  w <- 1 / (1 + gwas1$LDSC * gwas1$N / M * h21) /
-    (1 + gwas2$LDSC * gwas2$N / M * h22)
-  beta <- .wls_fit(l, z, w)
-  gcov.ini <- beta[2]; ecov.ini <- beta[1]
-  t1 <- Sys.time() - t1
-  print("Initial Genetic Covariance Estimate"); print(t1)
+stopifnot(identical(gwas1$SNP, gwas2$SNP))
+M <- nrow(gwas1)
+t0 <- Sys.time() - t0
+print("Processing data"); print(t0)
 
-  # --------------------------- Reweighting step ---------------------------
-  t2 <- Sys.time()
-  mu <- l * gcov.ini + ecov.ini
-  w  <- 1 / ((1 + gwas1$LDSC * gwas1$N / M * h21) /
-               (1 + gwas2$LDSC * gwas2$N / M * h22) + 2 * mu^2)
-  beta <- .wls_fit(l, z, w)
-  gcov <- beta[2]; ecov <- beta[1]
+.wls_fit <- function(l, z, w) {
+X <- cbind(1, l)
+XtX <- CppMatrix::matrixMultiply(t(X), X * w)
+Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
+as.vector(solve(XtX, Xty))
+}
 
-  mu <- l * gcov + ecov
-  w  <- 1 / ((1 + gwas1$LDSC * gwas1$N / M * h21) /
-               (1 + gwas2$LDSC * gwas2$N / M * h22) + 2 * mu^2)
-  beta <- .wls_fit(l, z, w)
-  gcov <- beta[2]; ecov <- beta[1]
-  t2 <- Sys.time() - t2
-  print("Genetic Covariance Reweighting"); print(t2)
+t1 <- Sys.time()
+z <- gwas1$Zscore * gwas2$Zscore
+l <- gwas1$LDSC * sqrt(gwas1$N) * sqrt(gwas2$N) / M
+base_var <- (1 + gwas1$LDSC * gwas1$N / M * h21) * (1 + gwas2$LDSC * gwas2$N / M * h22)
+w <- 1 / pmax(1, gwas1$LDSC) / base_var
+b <- .wls_fit(l, z, w)
+gcov <- b[2]; ecov <- b[1]
+t1 <- Sys.time() - t1
+print("Initial Genetic Covariance Estimate"); print(t1)
 
-  # --------------------------- Block bootstrap ---------------------------
-  if (sampling.time > 0) {
-    t3 <- Sys.time()
-    blocksize <- floor(M / nblock)
-    IndexMatrix <- matrix(seq_len(nblock * blocksize), nrow = blocksize, ncol = nblock)
-    gap <- M - (nblock * blocksize)
-    h2.vec <- intercept.vec <- numeric(sampling.time)
+t2 <- Sys.time()
+mu <- ecov + gcov * l
+w  <- 1 / pmax(1, gwas1$LDSC) / (base_var + 2 * mu^2)
+b <- .wls_fit(l, z, w)
+gcov <- b[2]; ecov <- b[1]
 
-    for (i in seq_len(sampling.time)) {
-      indcol <- sample.int(ncol(IndexMatrix), ncol(IndexMatrix), replace = TRUE)
-      ind <- as.vector(IndexMatrix[, indcol]) + ifelse(gap > 1, floor(runif(1, 0, gap)), 0)
+mu <- ecov + gcov * l
+w  <- 1 / pmax(1, gwas1$LDSC) / (base_var + 2 * mu^2)
+b <- .wls_fit(l, z, w)
+gcov <- b[2]; ecov <- b[1]
+t2 <- Sys.time() - t2
+print("Genetic Covariance Reweighting"); print(t2)
 
-      z1 <- z[ind]; l1 <- l[ind]; w1 <- w[ind]
-      b  <- .wls_fit(l1, z1, w1)
-      h2.vec[i] <- b[2]
-      intercept.vec[i] <- b[1]
-    }
-    t3 <- Sys.time() - t3
-    print("Standard Error Estimation"); print(t3)
+rg <- gcov / sqrt(h21 * h22)
 
-    ecov.se <- sqrt(mean((intercept.vec - ecov)^2))
-    gcov.se <- sqrt(mean((h2.vec - gcov)^2))
-  } else {
-    gcov.se <- ecov.se <- NA_real_
-  }
+if (sampling.time > 0) {
+t3 <- Sys.time()
+X <- cbind(1, l)
 
-  data.frame(ecov = ecov, ecov.se = ecov.se,
-             gcov = gcov, gcov.se = gcov.se,
-             M = M)
+blocksize <- floor(M / nblock)
+rem <- M - blocksize * nblock
+if (rem >= 0.5 * blocksize) {
+block_lengths <- c(rep(blocksize, nblock), rem)
+} else {
+block_lengths <- if (rem > 0) c(rep(blocksize, nblock - 1), blocksize + rem) else rep(blocksize, nblock)
+}
+B <- length(block_lengths)
+starts <- cumsum(c(1, head(block_lengths, -1)))
+IndexList <- lapply(seq_len(B), function(bi) starts[bi]:(starts[bi] + block_lengths[bi] - 1))
+
+XtXlist <- vector("list", B)
+Xtylist <- vector("list", B)
+for (bi in seq_len(B)) {
+idx <- IndexList[[bi]]
+Xi  <- X[idx, , drop = FALSE]
+wi  <- w[idx]
+zi  <- z[idx]
+XtXlist[[bi]] <- CppMatrix::matrixMultiply(t(Xi), Xi * wi)
+Xtylist[[bi]] <- CppMatrix::matrixVectorMultiply(t(Xi), zi * wi)
+}
+
+gcov.vec <- ecov.vec <- rg.vec <- numeric(sampling.time)
+for (r in seq_len(sampling.time)) {
+draw <- sample.int(B, B, replace = TRUE)
+cnt  <- tabulate(draw, nbins = B)
+sel  <- which(cnt > 0L)
+
+XtXi <- matrix(0, 2, 2)
+Xtyi <- numeric(2)
+for (j in sel) {
+cj   <- cnt[j]
+XtXi <- XtXi + cj * XtXlist[[j]]
+Xtyi <- Xtyi + cj * Xtylist[[j]]
+}
+br <- as.vector(solve(XtXi, Xtyi))
+ecov.vec[r] <- br[1]
+gcov.vec[r] <- br[2]
+}
+
+t3 <- Sys.time() - t3
+print("Standard Error Estimation"); print(t3)
+
+ecov.se <-sd(ecov.vec)
+gcov.se <-sd(gcov.vec)
+} else {
+ecov.se <- gcov.se <- NA_real_
+}
+
+data.frame(
+ecov = ecov, ecov.se = ecov.se,
+gcov = gcov, gcov.se = gcov.se,
+M = M
+)
 }

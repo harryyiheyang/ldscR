@@ -54,112 +54,92 @@
 #' @importFrom data.table setDT setkey
 #'
 #' @export
+ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran,sampling.time = 0,nblock = 500) {
 
-ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran,
-                      nblock = 500, sampling.time = 0) {
-  # Expect columns:
-  # gwas1/gwas2: SNP, Zscore, N
-  # LDSC_Tran:   SNP, LDSC12              (cross-ancestry LD score for the regressor)
-  # LDSC1:       SNP, LDSC1               (ancestry-1 within LD score, for weights)
-  # LDSC2:       SNP, LDSC2               (ancestry-2 within LD score, for weights)
+data.table::setDT(gwas1); data.table::setDT(gwas2)
+data.table::setDT(LDSC1); data.table::setDT(LDSC2); data.table::setDT(LDSC_Tran)
 
-  #----------------------- Harmonize once on a single skeleton -----------------------
-  data.table::setDT(gwas1); data.table::setDT(gwas2)
-  data.table::setDT(LDSC_Tran); data.table::setDT(LDSC1); data.table::setDT(LDSC2)
+SNPintersect <- Reduce(intersect, list(gwas1$SNP, gwas2$SNP, LDSC_Tran$SNP, LDSC1$SNP, LDSC2$SNP))
+skel <- data.table::data.table(SNP = SNPintersect); data.table::setkey(skel, SNP)
 
-  # SNP overlap of GWAS only, then use that as the skeleton for all joins
-  SNPintersect = intersect(gwas1$SNP, gwas2$SNP)
-  SNPintersect = intersect(SNPintersect, LDSC_Tran$SNP)
-  skel = data.table::data.table(SNP = SNPintersect)
-  data.table::setkey(skel, SNP)
+data.table::setkey(gwas1, SNP);     g1  <- gwas1[skel, nomatch = 0]
+data.table::setkey(gwas2, SNP);     g2  <- gwas2[skel, nomatch = 0]
+data.table::setkey(LDSC_Tran, SNP); L12 <- LDSC_Tran[skel, nomatch = 0]
+data.table::setkey(LDSC1, SNP);     L1  <- LDSC1[skel, nomatch = 0]
+data.table::setkey(LDSC2, SNP);     L2  <- LDSC2[skel, nomatch = 0]
 
-  # Left join in a fixed order, nomatch=0 to keep strict common SNPs
-  data.table::setkey(gwas1, SNP);      g1 = gwas1[skel, nomatch = 0]
-  data.table::setkey(gwas2, SNP);      g2 = gwas2[skel, nomatch = 0]
-  data.table::setkey(LDSC_Tran, SNP);  LDSC_Tran = LDSC_Tran[skel, nomatch = 0]
-  data.table::setkey(LDSC1, SNP);      LDSC1  = LDSC1[skel, nomatch = 0]
-  data.table::setkey(LDSC2, SNP);      LDSC2  = LDSC2[skel, nomatch = 0]
+stopifnot(identical(g1$SNP, g2$SNP),
+identical(g1$SNP, L12$SNP),
+identical(g1$SNP, L1$SNP),
+identical(g1$SNP, L2$SNP))
 
-  # Quick sanity: all same length and same SNP order
-  stopifnot(nrow(g1) == nrow(g2), nrow(g1) == nrow(LDSC_Tran),
-            nrow(g1) == nrow(LDSC1), nrow(g1) == nrow(LDSC2))
-  stopifnot(identical(g1$SNP, g2$SNP),
-            identical(g1$SNP, LDSC_Tran$SNP),
-            identical(g1$SNP, LDSC1$SNP),
-            identical(g1$SNP, LDSC2$SNP))
+M <- nrow(g1)
 
-  M = nrow(g1)
+z <- g1$Zscore * g2$Zscore
+l <- L12$LDSC * sqrt(g1$N) * sqrt(g2$N) / M
+X <- cbind(1, l)
 
-  #----------------------- Construct regressor and weights --------------------------
-  # Regression regressor uses cross-ancestry LD score:
-  #   LDSC_Tran = LDSC_Tran * sqrt(N1*N2) / M
-  z  = g1$Zscore * g2$Zscore
-  l  = LDSC_Tran$LDSC * sqrt(g1$N) * sqrt(g2$N) / M
+base_var <- (1 + L1$LDSC * g1$N * h21 / M) * (1 + L2$LDSC * g2$N * h22 / M)
+w <- 1 / (base_var * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
 
-  # Initial WLS with standard LDSC-style weights.
-  # Typical bivariate LDSC variance model ≈ (1 + h21 * N1 * LDSC1 / M) * (1 + h22 * N2 * LDSC2 / M)
-  # plus a regression mean term (ecov + gcov*LDSC_Tran) that contributes 2 * mean^2 in the denom.
-  # Start with product form (recommended); you can switch back to your ratio if you insist.
-  X  = cbind(1, l)
+.fit <- function(X, z, w) {
+XtX <- CppMatrix::matrixMultiply(t(X), X * w)
+Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
+as.vector(solve(XtX, Xty))
+}
 
-  w0_core = (1 + LDSC1$LDSC * g1$N * h21 / M) * (1 + LDSC2$LDSC * g2$N * h22 / M)
-  w       = 1 / w0_core
+b <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
+mu <- ecov + gcov * l
+w  <- 1 / ((base_var + 2 * mu^2) * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
+b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
-  XtX = CppMatrix::matrixMultiply(t(X), X * w)
-  Xty = CppMatrix::matrixVectorMultiply(t(X), z * w)
-  beta = as.vector(solve(XtX, Xty))
-  ecov.ini = beta[1]; gcov.ini = beta[2]
+mu <- ecov + gcov * l
+w  <- 1 / ((base_var + 2 * mu^2) * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
+b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
-  # Reweight for efficiency with the mean term included
-  mu  = ecov.ini + gcov.ini * l
-  w   = 1 / (w0_core + 2 * mu^2)
+if (sampling.time > 0) {
+blocksize <- floor(M / nblock)
+rem <- M - blocksize * nblock
+if (rem >= 0.5 * blocksize) {
+blen <- c(rep(blocksize, nblock), rem)
+} else {
+blen <- if (rem > 0) c(rep(blocksize, nblock - 1), blocksize + rem) else rep(blocksize, nblock)
+}
+B <- length(blen)
+starts <- cumsum(c(1, head(blen, -1)))
+IndexList <- lapply(seq_len(B), function(bi) starts[bi]:(starts[bi] + blen[bi] - 1))
 
-  XtX = CppMatrix::matrixMultiply(t(X), X * w)
-  Xty = CppMatrix::matrixVectorMultiply(t(X), z * w)
-  beta = as.vector(solve(XtX, Xty))
-  ecov = beta[1]; gcov = beta[2]
+XtXlist <- vector("list", B); Xtylist <- vector("list", B)
+for (bi in seq_len(B)) {
+idx <- IndexList[[bi]]
+Xi  <- X[idx, , drop = FALSE]
+wi  <- w[idx]
+zi  <- z[idx]
+XtXlist[[bi]] <- CppMatrix::matrixMultiply(t(Xi), Xi * wi)
+Xtylist[[bi]] <- CppMatrix::matrixVectorMultiply(t(Xi), zi * wi)
+}
 
-  # One more iter (optional)
-  mu  = ecov + gcov * l
-  w   = 1 / (w0_core + 2 * mu^2)
-  XtX = CppMatrix::matrixMultiply(t(X), X * w)
-  Xty = CppMatrix::matrixVectorMultiply(t(X), z * w)
-  beta = as.vector(solve(XtX, Xty))
-  ecov = beta[1]; gcov = beta[2]
+ecov.vec <- gcov.vec <- numeric(sampling.time)
+for (r in seq_len(sampling.time)) {
+draw <- sample.int(B, B, replace = TRUE)
+cnt  <- tabulate(draw, nbins = B)
+sel  <- which(cnt > 0L)
+XtXi <- matrix(0, 2, 2); Xtyi <- numeric(2)
+for (j in sel) {
+cj   <- cnt[j]
+XtXi <- XtXi + cj * XtXlist[[j]]
+Xtyi <- Xtyi + cj * Xtylist[[j]]
+}
+br <- as.vector(solve(XtXi, Xtyi))
+ecov.vec[r] <- br[1]; gcov.vec[r] <- br[2]
+}
+ecov.se <- sd(ecov.vec)
+gcov.se <- sd(gcov.vec)
+} else {
+ecov.se <- gcov.se <- NA_real_
+}
 
-  #----------------------- Block bootstrap SEs (same blocks across all tables) ------
-  if (sampling.time > 0) {
-    blocksize = floor(M / nblock)
-    idx_mat   = matrix(seq_len(nblock * blocksize), nrow = blocksize, ncol = nblock)
-    gap       = M - nblock * blocksize
-
-    gcov_vec = numeric(sampling.time)
-    ecov_vec = numeric(sampling.time)
-
-    for (i in seq_len(sampling.time)) {
-      cols = sample.int(nblock, nblock, replace = TRUE)
-      ind  = as.vector(idx_mat[, cols]) + if (gap > 0) sample.int(gap, 1) else 0
-
-      X1 = cbind(1, l[ind])
-      z1 = z[ind]
-      w1 = w[ind]
-
-      XtX = CppMatrix::matrixMultiply(t(X1), X1 * w1)
-      Xty = CppMatrix::matrixVectorMultiply(t(X1), z1 * w1)
-      b   = as.vector(solve(XtX, Xty))
-
-      ecov_vec[i] = b[1]
-      gcov_vec[i] = b[2]
-    }
-
-    ecov.se = sqrt(mean((ecov_vec - ecov)^2))
-    gcov.se = sqrt(mean((gcov_vec - gcov)^2))
-  } else {
-    ecov.se = NA_real_
-    gcov.se = NA_real_
-  }
-
-  data.frame(ecov = ecov, ecov.se = ecov.se,
-             gcov = gcov, gcov.se = gcov.se,
-             M = M)
+data.frame(ecov = ecov, ecov.se = ecov.se,
+gcov = gcov, gcov.se = gcov.se,
+M = M)
 }

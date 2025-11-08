@@ -4,7 +4,7 @@
 \alias{ldsc.univ}
 \title{Univariate LD Score Regression (LDSC) for SNP-Heritability}
 \usage{
-ldsc.univ(gwas, LDSC, nblock = 500, sampling.time = 500)
+ldsc.univ(gwas, LDSC, sampling.time = 0, nblock = 500)
 }
 \arguments{
 \item{gwas}{A `data.frame` or `data.table` of GWAS summary statistics for one trait.
@@ -26,10 +26,10 @@ Required columns:
   \item `LDSC` — LD score
 }}
 
-\item{nblock}{Integer. Number of blocks for block bootstrap.}
-
 \item{sampling.time}{Integer. Number of bootstrap replicates. If `0`, only
 point estimates are returned.}
+
+\item{nblock}{Integer. Number of blocks for block bootstrap.}
 }
 \value{
 A `data.frame` with:
