@@ -50,6 +50,10 @@
 #' @importFrom data.table setDT setkey
 #' @export
 ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500) {
+  gwas1 <- data.table::copy(gwas1)
+  LDSC <- data.table::copy(LDSC)
+  gwas2 <- data.table::copy(gwas2)
+
 data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
 data.table::setDT(gwas1); data.table::setDT(gwas2)
 

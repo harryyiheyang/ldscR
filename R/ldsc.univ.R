@@ -49,6 +49,8 @@
 #' @export
 ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500) {
 ############################# PART 1 #########################################
+gwas <- data.table::copy(gwas)
+LDSC <- data.table::copy(LDSC)
 t0 <- Sys.time()
 data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
 skel <- LDSC[, .(SNP)]

@@ -55,6 +55,10 @@
 #'
 #' @export
 ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran,sampling.time = 0,nblock = 500) {
+gwas1 <- data.table::copy(gwas1)
+LDSC1 <- data.table::copy(LDSC1)
+gwas2 <- data.table::copy(gwas2)
+LDSC2 <- data.table::copy(LDSC2)
 
 data.table::setDT(gwas1); data.table::setDT(gwas2)
 data.table::setDT(LDSC1); data.table::setDT(LDSC2); data.table::setDT(LDSC_Tran)
