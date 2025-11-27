@@ -13,5 +13,5 @@ fit3=ldsc.bicov(gwas1=gwaslist$driving,gwas2=gwaslist$computer,LDSC=Hapmap3_EURL
 fit1
 fit2
 fit3
-gcov_matrix=matrix(c(fit1$h2,fit3$gcov,fit3$gcov,fit2$h2))
-ecov_matrix=matrix(c(fit1$intercept,fit3$ecov,fit3$ecov,fit2$intercept))
+gcov_matrix=matrix(c(fit1$h2,fit3$gcov,fit3$gcov,fit2$h2),2,2)
+ecov_matrix=matrix(c(fit1$intercept,fit3$ecov,fit3$ecov,fit2$intercept),2,2)

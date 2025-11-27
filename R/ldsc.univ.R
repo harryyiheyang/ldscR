@@ -72,7 +72,7 @@ as.vector(solve(XtX) %*% Xty)
 t1 <- Sys.time()
 z <- gwas$Zscore^2
 l <- gwas$LDSC * gwas$N / M
-w <- 1 / pmax(1, gwas$LDSC) / (1 + 0.1 * l)^2
+w <- 1 / (1 + 0.1 * l)^2
 beta <- .wls_fit(l, z, w)
 h2.ini <- beta[2]
 intercept.ini <- beta[1]
@@ -80,11 +80,11 @@ t1 <- Sys.time() - t1
 print("Initial Heritability Estimate"); print(t1)
 ############################# PART 2 #########################################
 t2 <- Sys.time()
-w  <- 1 / pmax(1, gwas$LDSC) / (1 + l * h2.ini)^2
+w  <- 1 / (1 + l * h2.ini)^2
 beta <- .wls_fit(l, z, w)
 h2 <- beta[2]; intercept <- beta[1]
 
-w  <- 1 / pmax(1, gwas$LDSC) / (1 + l * h2)^2
+w  <- 1 /(1 + l * h2)^2
 beta <- .wls_fit(l, z, w)
 h2 <- beta[2]; intercept <- beta[1]
 t2 <- Sys.time() - t2
