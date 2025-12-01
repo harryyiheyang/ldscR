@@ -1,0 +1,25 @@
+Package: ldscR
+Type: Package
+Title: Heritability and Genetic Correlation Matrix Estimation Using Linkage 
+    Disequilibrium Score Regression
+Version: 0.1.0
+Author: Yihe Yang
+Maintainer: Yihe Yang <yxy1234@case.edu>
+Description: This package provides tools for estimating heritability and genetic 
+    correlation matrices using Linkage Disequilibrium Score Regression (LDSC). 
+    It automates allele harmonization, merges GWAS results from multiple traits, 
+    and estimates the genetic covariance matrix for these traits. The diagonal 
+    elements of the genetic covariance matrix represent heritability estimates, 
+    while the corresponding correlation matrix represents the genetic correlation 
+    coefficients.
+License: MIT
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 2.10)
+Imports:
+    data.table (>= 1.12.0),
+    arrow,
+    CppMatrix
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3

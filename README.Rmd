@@ -1,0 +1,148 @@
+---
+title: "Estimating Heritability and Genetic Covariance via LDSC"
+author: "Yihe Yang (yxy1234@case.edu)"
+date: ""
+output: github_document
+---
+
+## Overview
+
+This tutorial demonstrates how to perform single- and bivariate Linkage Disequilibrium Score Regression (LDSC) to estimate:
+
+- SNP heritability of two behavioral traits: **driving time** and **computer use time**;
+- Genetic and environmental covariance between them.
+
+The example uses preprocessed GWAS summary statistics, originally derived from UK Biobank questionnaires, and LD scores based on European HapMap3 reference.
+
+---
+
+## Installation and Setup
+
+```r
+devtools::install_github("harryyiheyang/ldscR")
+```
+
+## Step 1: Load LD Score References
+
+This package supports two types of LD Score reference panels:
+
+1. HapMap3-based references (~1.1-1.7M SNPs)
+
+- Traditional sparse reference panels
+- Built-in data: Hapmap3_EURLDSC, Hapmap3_EASLDSC, etc.
+- Suitable for standard heritability analyses
+- Faster computation due to fewer SNPs
+
+
+2. High-density 7M references (~7M SNPs)
+
+- Based on UK Biobank imputed data via SBayesRC
+- Provides enhanced accuracy for complex trait analyses
+- Available for single ancestries (EUR, EAS, AFR) and cross-population combinations
+- Requires download due to large file sizes
+
+### Option A: Use Built-in HapMap3 References
+
+```{r}
+library(ldscR)
+# Load built-in European HapMap3 LD scores
+data("Hapmap3")
+data("Hapmap3_EURLDSC")
+head(Hapmap3)
+head(Hapmap3_EURLDSC)
+```
+
+### Option B: Download High-Density 7M References
+
+```{r}
+library(ldscR)
+# Download 7M European LD scores (recommended for enhanced accuracy)
+download_7MLDSC("EUR")
+# This loads SevenMillon_EURLDSC and SevenMillon_SNP into your workspace
+
+head(SevenMillon_EURLDSC)
+head(SevenMillon_SNP)
+
+# Alternative: Download cross-population references
+# download_7MLDSC("EURxEAS")  # European x East Asian
+# download_7MLDSC("EURxAFR")  # European x African
+```
+
+## Step 2: Download Example Data
+
+```{r}
+library(devtools)
+library(dplyr)
+library(ldscR)
+data_url <- "http://tinyurl.com/nhdfwd8v"
+temp_file <- tempfile()
+download.file(data_url, temp_file, mode = "wb")
+gwaslist <- readRDS(temp_file)
+unlink(temp_file)
+```
+
+## Step 3: Align SNPs
+
+```{r}
+gwaslist <- filter_align(
+  gwas_data_list = gwaslist,
+  ref_panel = Hapmap3[, c("SNP", "A1", "A2")]
+)
+```
+
+## Step 4: Estimate SNP Heritability (Univariate LDSC)
+```{r}
+fit1 <- ldsc.univ(
+  gwas = gwaslist$driving,
+  LDSC = Hapmap3_EURLDSC,
+  nblock = 500,
+  sampling.time = 200
+)
+
+fit2 <- ldsc.univ(
+  gwas = gwaslist$computer,
+  LDSC = Hapmap3_EURLDSC,
+  nblock = 500,
+  sampling.time = 200
+)
+
+fit1  # Heritability and intercept for driving time
+fit2  # Heritability and intercept for computer use time
+```
+
+## Step 5: Estimate Genetic Covariance (Bivariate LDSC)
+
+```{r}
+fit3 <- ldsc.bicov(
+  gwas1 = gwaslist$driving,
+  gwas2 = gwaslist$computer,
+  LDSC = Hapmap3_EURLDSC,
+  nblock = 500,
+  sampling.time = 200,
+  h21 = fit1$h2,
+  h22 = fit2$h2
+)
+
+fit3  # Genetic and sample-overlap covariance between traits
+```
+
+## Step 6: Construct Covariance Matrices
+
+```{r}
+gcov_matrix <- matrix(
+  c(fit1$h2, fit3$gcov,
+    fit3$gcov, fit2$h2),
+  nrow = 2, byrow = TRUE,
+  dimnames = list(c("Driving", "Computer"), c("Driving", "Computer"))
+)
+
+ecov_matrix <- matrix(
+  c(fit1$intercept, fit3$ecov,
+    fit3$ecov, fit2$intercept),
+  nrow = 2, byrow = TRUE,
+  dimnames = list(c("Driving", "Computer"), c("Driving", "Computer"))
+)
+
+gcov_matrix
+ecov_matrix
+```
