@@ -84,7 +84,7 @@ l <- L12$LDSC * sqrt(g1$N) * sqrt(g2$N) / M
 X <- cbind(1, l)
 
 base_var <- (1 + L1$LDSC * g1$N * h21 / M) * (1 + L2$LDSC * g2$N * h22 / M)
-w <- 1 / (base_var * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
+w <- 1 / (base_var)
 
 .fit <- function(X, z, w) {
 XtX <- CppMatrix::matrixMultiply(t(X), X * w)
@@ -94,11 +94,11 @@ as.vector(solve(XtX, Xty))
 
 b <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 mu <- ecov + gcov * l
-w  <- 1 / ((base_var + 2 * mu^2) * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
+w  <- 1 / (base_var + 2 * mu^2)
 b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
 mu <- ecov + gcov * l
-w  <- 1 / ((base_var + 2 * mu^2) * sqrt(pmax(1, L1$LDSC) * pmax(1, L2$LDSC)))
+w  <- 1 / (base_var + 2 * mu^2)
 b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
 if (sampling.time > 0) {
