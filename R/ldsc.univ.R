@@ -80,15 +80,15 @@ t1 <- Sys.time() - t1
 print("Initial Heritability Estimate"); print(t1)
 ############################# PART 2 #########################################
 t2 <- Sys.time()
-w  <- 1 / (1 + l * h2.ini)^2
+w  <- 1 / (1 + l * h2.ini)^2/ pmax(1, gwas$LDSC)
 beta <- .wls_fit(l, z, w)
 h2 <- beta[2]; intercept <- beta[1]
 
-w  <- 1 / (1 + l * h2)^2
+w  <- 1 / (1 + l * h2)^2/ pmax(1, gwas$LDSC)
 beta <- .wls_fit(l, z, w)
 h2 <- beta[2]; intercept <- beta[1]
 
-w  <- 1 / (1 + l * h2)^2
+w  <- 1 / (1 + l * h2)^2/ pmax(1, gwas$LDSC)
 beta <- .wls_fit(l, z, w)
 h2 <- beta[2]; intercept <- beta[1]
 

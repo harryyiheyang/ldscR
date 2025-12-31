@@ -83,7 +83,7 @@ t1 <- Sys.time()
 z <- gwas1$Zscore * gwas2$Zscore
 l <- gwas1$LDSC * sqrt(gwas1$N) * sqrt(gwas2$N) / M
 base_var <- (1 + gwas1$LDSC * gwas1$N / M * h21) * (1 + gwas2$LDSC * gwas2$N / M * h22)
-w <- 1 / base_var
+w <- 1 / base_var/ pmax(1, gwas1$LDSC)
 b <- .wls_fit(l, z, w)
 gcov <- b[2]; ecov <- b[1]
 t1 <- Sys.time() - t1
@@ -91,12 +91,12 @@ print("Initial Genetic Covariance Estimate"); print(t1)
 
 t2 <- Sys.time()
 mu <- ecov + gcov * l
-w  <- 1 / (base_var + 2 * mu^2)
+w  <- 1 / (base_var + 2 * mu^2)/ pmax(1, gwas1$LDSC)
 b <- .wls_fit(l, z, w)
 gcov <- b[2]; ecov <- b[1]
 
 mu <- ecov + gcov * l
-w  <- 1 / (base_var + 2 * mu^2)
+w  <- 1 / (base_var + 2 * mu^2)/ pmax(1, gwas1$LDSC)
 b <- .wls_fit(l, z, w)
 gcov <- b[2]; ecov <- b[1]
 t2 <- Sys.time() - t2
