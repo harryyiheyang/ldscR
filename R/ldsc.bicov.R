@@ -50,23 +50,19 @@
 #' @importFrom data.table setDT setkey
 #' @export
 ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500) {
-  gwas1 <- data.table::copy(gwas1)
-  LDSC <- data.table::copy(LDSC)
-  gwas2 <- data.table::copy(gwas2)
-
-data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
-data.table::setDT(gwas1); data.table::setDT(gwas2)
-
+gwas1 <- data.table::copy(as.data.frame(gwas1))
+gwas2 <- data.table::copy(as.data.frame(gwas2))
+LDSC <- data.table::copy(as.data.frame(LDSC))
 t0 <- Sys.time()
-SNPintersect <- intersect(intersect(gwas1$SNP, gwas2$SNP), LDSC$SNP)
-skel <- data.table::data.table(SNP = SNPintersect); data.table::setkey(skel, SNP)
-
-#
-gwas1 <- gwas1[skel, on = "SNP", nomatch = 0]
-gwas2 <- gwas2[skel, on = "SNP", nomatch = 0]
-gwas1 <- LDSC[gwas1, on = "SNP", nomatch = 0]
-gwas2 <- LDSC[gwas2, on = "SNP", nomatch = 0]
-
+data.table::setDT(LDSC)
+data.table::setDT(gwas1)
+data.table::setDT(gwas2)
+common_snps <- LDSC$SNP[LDSC$SNP %in% gwas1$SNP & LDSC$SNP %in% gwas2$SNP]
+LDSC <- LDSC[match(common_snps, SNP), ]
+gwas1 <- gwas1[match(common_snps, SNP), ]
+gwas2 <- gwas2[match(common_snps, SNP), ]
+gwas1$LDSC <- LDSC$LDSC
+gwas2$LDSC <- LDSC$LDSC
 stopifnot(identical(gwas1$SNP, gwas2$SNP))
 M <- nrow(gwas1)
 t0 <- Sys.time() - t0
@@ -83,7 +79,7 @@ t1 <- Sys.time()
 z <- gwas1$Zscore * gwas2$Zscore
 l <- gwas1$LDSC * sqrt(gwas1$N) * sqrt(gwas2$N) / M
 base_var <- (1 + gwas1$LDSC * gwas1$N / M * h21) * (1 + gwas2$LDSC * gwas2$N / M * h22)
-w <- 1 / base_var/ pmax(1, gwas1$LDSC)
+w <- 1 / base_var / pmax(1, gwas1$LDSC)
 b <- .wls_fit(l, z, w)
 gcov <- b[2]; ecov <- b[1]
 t1 <- Sys.time() - t1

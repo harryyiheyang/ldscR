@@ -3,6 +3,7 @@
 export(download_7MLDSC)
 export(filter_align)
 export(ldsc.bicov)
+export(ldsc.strat)
 export(ldsc.trans)
 export(ldsc.univ)
 importFrom(CppMatrix,matrixMultiply)

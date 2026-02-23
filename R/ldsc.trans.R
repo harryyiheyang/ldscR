@@ -55,44 +55,46 @@
 #'
 #' @export
 ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran,sampling.time = 0,nblock = 500) {
-gwas1 <- data.table::copy(gwas1)
-LDSC1 <- data.table::copy(LDSC1)
-gwas2 <- data.table::copy(gwas2)
-LDSC2 <- data.table::copy(LDSC2)
+gwas1 <- data.table::copy(as.data.frame(gwas1))
+gwas2 <- data.table::copy(as.data.frame(gwas2))
+LDSC1 <- data.table::copy(as.data.frame(LDSC1))
+LDSC2 <- data.table::copy(as.data.frame(LDSC2))
+LDSC_Tran <- data.table::copy(as.data.frame(LDSC_Tran))
 
-data.table::setDT(gwas1); data.table::setDT(gwas2)
-data.table::setDT(LDSC1); data.table::setDT(LDSC2); data.table::setDT(LDSC_Tran)
+data.table::setDT(gwas1)
+data.table::setDT(gwas2)
+data.table::setDT(LDSC1)
+data.table::setDT(LDSC2)
+data.table::setDT(LDSC_Tran)
 
-SNPintersect <- Reduce(intersect, list(gwas1$SNP, gwas2$SNP, LDSC_Tran$SNP, LDSC1$SNP, LDSC2$SNP))
-skel <- data.table::data.table(SNP = SNPintersect); data.table::setkey(skel, SNP)
+common_snps <- LDSC_Tran$SNP[LDSC_Tran$SNP %in% gwas1$SNP &
+                             LDSC_Tran$SNP %in% gwas2$SNP &
+                             LDSC_Tran$SNP %in% LDSC1$SNP &
+                             LDSC_Tran$SNP %in% LDSC2$SNP]
 
-data.table::setkey(gwas1, SNP);     g1  <- gwas1[skel, nomatch = 0]
-data.table::setkey(gwas2, SNP);     g2  <- gwas2[skel, nomatch = 0]
-data.table::setkey(LDSC_Tran, SNP); L12 <- LDSC_Tran[skel, nomatch = 0]
-data.table::setkey(LDSC1, SNP);     L1  <- LDSC1[skel, nomatch = 0]
-data.table::setkey(LDSC2, SNP);     L2  <- LDSC2[skel, nomatch = 0]
-
+L12 <- LDSC_Tran[match(common_snps, SNP), ]
+g1  <- gwas1[match(common_snps, SNP), ]
+g2  <- gwas2[match(common_snps, SNP), ]
+L1  <- LDSC1[match(common_snps, SNP), ]
+L2  <- LDSC2[match(common_snps, SNP), ]
 stopifnot(identical(g1$SNP, g2$SNP),
-identical(g1$SNP, L12$SNP),
-identical(g1$SNP, L1$SNP),
-identical(g1$SNP, L2$SNP))
+      identical(g1$SNP, L12$SNP),
+      identical(g1$SNP, L1$SNP),
+      identical(g1$SNP, L2$SNP))
 
 M <- nrow(g1)
-
 z <- g1$Zscore * g2$Zscore
 l <- L12$LDSC * sqrt(g1$N) * sqrt(g2$N) / M
 X <- cbind(1, l)
-
 base_var <- (1 + L1$LDSC * g1$N * h21 / M) * (1 + L2$LDSC * g2$N * h22 / M)
 w <- 1 / (base_var)
-
 .fit <- function(X, z, w) {
 XtX <- CppMatrix::matrixMultiply(t(X), X * w)
 Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
 as.vector(solve(XtX, Xty))
 }
-
 b <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
+
 mu <- ecov + gcov * l
 w  <- 1 / (base_var + 2 * mu^2)
 b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]

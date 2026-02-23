@@ -49,26 +49,24 @@
 #' @export
 ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500) {
 ############################# PART 1 #########################################
-gwas <- data.table::copy(gwas)
-LDSC <- data.table::copy(LDSC)
+gwas <- data.table::copy(as.data.frame(gwas))
+LDSC <- data.table::copy(as.data.frame(LDSC))
 t0 <- Sys.time()
-data.table::setDT(LDSC); data.table::setkey(LDSC, SNP)
-skel <- LDSC[, .(SNP)]
-data.table::setkey(skel, SNP)
-data.table::setDT(gwas); data.table::setkey(gwas, SNP)
-gwas <- gwas[skel, nomatch = 0]
-gwas <- LDSC[gwas, nomatch = 0]
+data.table::setDT(LDSC)
+data.table::setDT(gwas)
+common_snps <- gwas$SNP[gwas$SNP %in% LDSC$SNP]
+gwas <- gwas[match(common_snps, SNP), ]
+LDSC <- LDSC[match(common_snps, SNP), ]
+gwas$LDSC <- LDSC$LDSC
 M <- nrow(gwas)
 t0 <- Sys.time() - t0
 print("Processing data"); print(t0)
-
 .wls_fit <- function(l, z, w) {
-X   <- cbind(1, l)
-XtX <- CppMatrix::matrixMultiply(t(X), X * w)
-Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
-as.vector(solve(XtX) %*% Xty)
+  X   <- cbind(1, l)
+  XtX <- CppMatrix::matrixMultiply(t(X), X * w)
+  Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
+  as.vector(solve(XtX) %*% Xty)
 }
-
 t1 <- Sys.time()
 z <- gwas$Zscore^2
 l <- gwas$LDSC * gwas$N / M
