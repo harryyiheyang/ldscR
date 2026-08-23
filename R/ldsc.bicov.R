@@ -45,6 +45,9 @@
 #'   \item `gcov.se` — standard error of `gcov` (bootstrap; `NA` if no bootstrap)
 #'   \item `M` — number of SNPs analyzed
 #' }
+#' When `sampling.time > 0`, `$bootstrap` contains the numeric vectors `ecov`
+#' and `gcov`, plus `block.counts`, the block-count matrix used for resampling
+#' (one replicate per row and one block per column).
 #'
 #' @importFrom CppMatrix matrixMultiply matrixVectorMultiply
 #' @importFrom data.table setDT setkey
@@ -127,9 +130,12 @@ Xtylist[[bi]] <- CppMatrix::matrixVectorMultiply(t(Xi), zi * wi)
 }
 
 gcov.vec <- ecov.vec <- rg.vec <- numeric(sampling.time)
+block.counts <- matrix(0L, nrow = sampling.time, ncol = B)
+colnames(block.counts) <- paste0("block", seq_len(B))
 for (r in seq_len(sampling.time)) {
 draw <- sample.int(B, B, replace = TRUE)
 cnt  <- tabulate(draw, nbins = B)
+block.counts[r, ] <- cnt
 sel  <- which(cnt > 0L)
 
 XtXi <- matrix(0, 2, 2)
@@ -153,9 +159,17 @@ gcov.se <-sd(gcov.vec)
 ecov.se <- gcov.se <- NA_real_
 }
 
-data.frame(
+result <- data.frame(
 ecov = ecov, ecov.se = ecov.se,
 gcov = gcov, gcov.se = gcov.se,
 M = M
 )
+if (sampling.time > 0) {
+result <- .new_ldsc_bootstrap_result(result, list(
+ecov = ecov.vec,
+gcov = gcov.vec,
+block.counts = block.counts
+))
+}
+result
 }

@@ -42,6 +42,9 @@ A `data.frame` with:
   \item `gcov.se` — standard error of `gcov` (bootstrap; `NA` if no bootstrap)
   \item `M` — number of SNPs analyzed
 }
+When `sampling.time > 0`, `$bootstrap` contains the numeric vectors `ecov`
+and `gcov`, plus `block.counts`, the block-count matrix used for resampling
+(one replicate per row and one block per column).
 }
 \description{
 `ldsc.bicov` estimates the genetic covariance between two traits using

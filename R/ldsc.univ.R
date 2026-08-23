@@ -43,6 +43,9 @@
 #'   \item `h2.se` — standard error of `h2` (bootstrap; `NA` if no bootstrap)
 #'   \item `M` — number of SNPs analyzed
 #' }
+#' When `sampling.time > 0`, `$bootstrap` contains the numeric vectors
+#' `intercept` and `h2`, plus `block.counts`, the block-count matrix used for
+#' resampling (one replicate per row and one block per column).
 #'
 #' @importFrom CppMatrix matrixMultiply matrixVectorMultiply
 #' @importFrom data.table setDT setkey
@@ -125,10 +128,13 @@ Xtylist[[b]] <- CppMatrix::matrixVectorMultiply(t(Xi), zi * wi)
 
 h2.vec <- numeric(sampling.time)
 intercept.vec <- numeric(sampling.time)
+block.counts <- matrix(0L, nrow = sampling.time, ncol = B)
+colnames(block.counts) <- paste0("block", seq_len(B))
 
 for (r in seq_len(sampling.time)) {
 draw <- sample.int(B, B, replace = TRUE)
 cnt  <- tabulate(draw, nbins = B)
+block.counts[r, ] <- cnt
 sel  <- which(cnt > 0L)
 
 XtXi <- matrix(0, 2, 2)
@@ -152,7 +158,15 @@ h2.se        <- sd(h2.vec)
 h2.se <- intercept.se <- NA_real_
 }
 
-data.frame(intercept = intercept, intercept.se = intercept.se,
+result <- data.frame(intercept = intercept, intercept.se = intercept.se,
 h2 = h2, h2.se = h2.se,
 M = M)
+if (sampling.time > 0) {
+result <- .new_ldsc_bootstrap_result(result, list(
+intercept = intercept.vec,
+h2 = h2.vec,
+block.counts = block.counts
+))
+}
+result
 }

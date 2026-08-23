@@ -40,6 +40,9 @@ A `data.frame` with:
   \item `h2.se` — standard error of `h2` (bootstrap; `NA` if no bootstrap)
   \item `M` — number of SNPs analyzed
 }
+When `sampling.time > 0`, `$bootstrap` contains the numeric vectors
+`intercept` and `h2`, plus `block.counts`, the block-count matrix used for
+resampling (one replicate per row and one block per column).
 }
 \description{
 `ldsc.univ` estimates SNP-heritability for a single trait using
