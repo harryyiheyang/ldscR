@@ -54,3 +54,20 @@ test_that("sumher recovers h2 under its own model", {
   r <- sumher(g, tag, z.max = Inf)
   expect_lt(abs(r$h2$h2 - h2), 4 * r$h2$se)
 })
+
+test_that("ldsc.bicov estimates h2 internally and gives rg with a bootstrap SE", {
+  set.seed(3)
+  M <- 6000; N <- 5e4
+  ld <- data.frame(SNP = paste0("rs", 1:M), LDSC = rgamma(M, 4, 0.5))
+  s <- sqrt(1 + N * 0.3 * ld$LDSC / M)
+  z1 <- rnorm(M) * s; z2 <- 0.6 * z1 + sqrt(1 - 0.36) * rnorm(M) * s
+  g1 <- data.frame(SNP = ld$SNP, Zscore = z1, N = N); g2 <- data.frame(SNP = ld$SNP, Zscore = z2, N = N)
+  set.seed(1)
+  f <- ldsc.bicov(g1, g2, LDSC = ld, sampling.time = 50, nblock = 50)
+  set.seed(1)
+  u <- ldsc.univ(g1, ld, sampling.time = 50, nblock = 50)
+  expect_equal(f$h21, u$h2, tolerance = 1e-10)
+  expect_equal(f$h21.se, u$h2.se, tolerance = 1e-10)
+  expect_true(is.finite(f$rg.se) && f$rg.se > 0)
+  expect_equal(f$rg, f$gcov / sqrt(f$h21 * f$h22))
+})

@@ -6,7 +6,6 @@ export(filter_align)
 export(ldak.as.ldsc)
 export(ldak.tagging)
 export(ldsc.bicov)
-export(ldsc.rg)
 export(ldsc.strat)
 export(ldsc.trans)
 export(ldsc.univ)
@@ -15,11 +14,6 @@ export(read_ldak_tagging)
 export(sumher)
 export(write_eigen_bin)
 export(write_ldak_tagging)
-importFrom(CppMatrix,
-  matrixMultiply,
-  matrixVectorMultiply
-)
-importFrom(data.table,
-  setDT,
-  setkey
-)
+importFrom(Rcpp,evalCpp)
+importFrom(data.table,setDT)
+useDynLib(ldscR, .registration = TRUE)

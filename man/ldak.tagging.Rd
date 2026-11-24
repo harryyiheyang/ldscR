@@ -13,7 +13,10 @@ ldak.tagging(
   thin.r2 = 0.98,
   n.ref = NULL,
   regression.snps = NULL,
-  chunk = 2000
+  normalize = TRUE,
+  thresh = 0,
+  chunk = 1024L,
+  threads = 0L
 )
 }
 \arguments{
@@ -38,7 +41,14 @@ Human Default model, -1 for GCTA/LDSC.}
 \item{regression.snps}{SNPs used as regression SNPs (`NULL` = all panel SNPs).
 Restrict this to the SNPs the GWAS will provide.}
 
-\item{chunk}{Rows of the LD matrix formed at a time.}
+\item{normalize}{Divide the stored correlations by \eqn{\sqrt{R_{jj} R_{kk}}} so that a
+truncated eigen factor still has unit diagonal.}
+
+\item{thresh}{Eigenvalue variance kept (\eqn{\le 0}: every stored pair).}
+
+\item{chunk}{Rows of the block's LD matrix formed at a time.}
+
+\item{threads}{OpenMP threads over blocks (0: from the scheduler allocation, else 4).}
 }
 \value{
 A list of class `ldak_tagging`: `tagging` (`SNP`, `A1`, `A2`,
@@ -56,7 +66,7 @@ where \eqn{w_k} are LDAK weights, \eqn{f_k} the allele frequency,
 \eqn{a_{kc}} the annotations, and off-diagonal \eqn{r^2} are bias-corrected
 as \eqn{r^2 - (1 - r^2)/(n_{ref} - 2)} (diagonal = 1). These are the
 `--calc-tagging` quantities of LDAK, with LD restricted to the panel blocks
-instead of a 1 Mb window.
+instead of a 1 Mb window. Computed in C++ (`src/ldak.cpp`, OpenMP over blocks).
 }
 \details{
 Weights: `"thin"` is the LDAK-Thin model (`--thin --window-prune`): within

@@ -2,49 +2,54 @@
 % Please edit documentation in R/ldsc.bicov.R
 \name{ldsc.bicov}
 \alias{ldsc.bicov}
-\title{Bivariate LD Score Regression (LDSC) for Cross-Trait Genetic Covariance}
+\title{Bivariate LD Score Regression (LDSC): genetic covariance and correlation}
 \usage{
 ldsc.bicov(
   gwas1,
   gwas2,
-  h21,
-  h22,
+  h21 = NULL,
+  h22 = NULL,
   LDSC,
   sampling.time = 0,
   nblock = 500,
   M = NULL,
   two.step = 30,
-  z.max = NULL,
-  block.counts = NULL
+  z.max = NULL
 )
 }
 \arguments{
 \item{gwas1, gwas2}{`data.frame`s with columns `SNP`, `Zscore`, `N`, aligned
 to the same alleles.}
 
-\item{h21, h22}{Heritability estimates of the two traits (used in the weights
-and to report `rg`).}
+\item{h21, h22}{`NULL` (default): estimated here. Numbers: used as fixed
+heritabilities in the weights and in `rg` (then `rg.se` ignores their
+uncertainty).}
 
 \item{LDSC}{LD-score panel as in [ldsc.univ()] (columns `SNP`, `LDSC`,
 optional `wLD`); all panel SNPs.}
 
-\item{sampling.time, nblock, block.counts}{Block bootstrap, as in [ldsc.univ()].}
+\item{sampling.time, nblock}{Block bootstrap, as in [ldsc.univ()].}
 
 \item{M}{Number of panel SNPs (`NULL`: rows of `LDSC`).}
 
-\item{two.step}{Chi-square cutoff: the intercept is estimated from SNPs with
-both \eqn{\chi^2_1, \chi^2_2 <} `two.step`, the slope from all SNPs.
-`NULL` = one step.}
+\item{two.step}{Chi-square cutoff: the intercepts are estimated from SNPs
+with \eqn{\chi^2 <} `two.step` (both traits for the cross-trait fit), the
+slopes from all SNPs. `NULL` = one step.}
 
 \item{z.max}{Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.}
 }
 \value{
-A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `rg`
-  (`gcov / sqrt(h21 h22)`, no SE: use [ldsc.rg()]), `M`, `M.reg`.
+A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `h21`,
+  `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg` (`h2*.se` are `NA`
+  when `h21`, `h22` are supplied). With bootstrap, `$bootstrap` holds the
+  replicate vectors and `block.counts`.
 }
 \description{
-`ldsc.bicov` estimates the genetic covariance between two traits by weighted
-least squares of \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}.
+`ldsc.bicov` regresses \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}
+by weighted least squares. By default it also fits the two univariate
+regressions ([ldsc.univ()]) on the same SNPs with the same bootstrap draws,
+so \eqn{r_g = \mathrm{gcov}/\sqrt{h^2_1 h^2_2}} and its bootstrap SE come
+out of the same call. The computation is in C++ (`src/ldsc_univ_bicov.cpp`).
 }
 \details{
 For bivariate normal \eqn{(z_1, z_2)} with variances

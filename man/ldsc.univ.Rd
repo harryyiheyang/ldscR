@@ -11,8 +11,7 @@ ldsc.univ(
   nblock = 500,
   M = NULL,
   two.step = 30,
-  z.max = NULL,
-  block.counts = NULL
+  z.max = NULL
 )
 }
 \arguments{
@@ -39,9 +38,6 @@ all SNPs with the intercept fixed. `NULL` fits both in one step.}
 
 \item{z.max}{Z-scores are truncated (not removed) to `[-z.max, z.max]`.
 `NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}, the ldsc chi-square cap.}
-
-\item{block.counts}{Optional bootstrap count matrix (replicates x blocks) to
-reuse the draws of another fit (see [ldsc.rg()]).}
 }
 \value{
 A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
@@ -51,7 +47,7 @@ A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
 \description{
 `ldsc.univ` estimates SNP-heritability for a single trait by weighted least
 squares of \eqn{Z_j^2} on \eqn{(1, \ell_j N_j / M)}, with an optional block
-bootstrap for standard errors.
+bootstrap for standard errors. The computation is in C++ (`src/ldsc_univ_bicov.cpp`).
 }
 \details{
 Weights: \eqn{w_j = 1/\max(1, \ell^{w}_j) / (1 + \hat h^2 N_j \ell_j / M)^2},

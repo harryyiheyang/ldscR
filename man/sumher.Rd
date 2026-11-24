@@ -33,10 +33,21 @@ sumher(
 \item{tol, maxiter}{Convergence tolerance on the log-likelihood and iteration limit.}
 }
 \value{
-A list with `h2` (total, SE), `Heritability` (per category: `h2_c`),
-  `Category` (heritability carried by the SNPs of each category),
-  `Enrichment` (share, expected share = proportion of SNPs, enrichment),
-  `intercept` (\eqn{1 + \bar n a}), `loglik`, `M.reg`.
+A list (\eqn{s} = the weighted mean sample size, \eqn{\mathrm{ssums}} from the tagging):
+\describe{
+  \item{`h2`}{total SNP heritability \eqn{\sum_c \theta_c \mathrm{ssums}_{cc} / s} and SE
+    (LDAK `Her_All`).}
+  \item{`Heritability`}{per column, \eqn{\theta_c \mathrm{ssums}_{cc} / s}: the heritability
+    of the coefficient of column \eqn{c} alone (LDAK `.hers`, `Her_A*`).}
+  \item{`Category`}{heritability of the SNPs with \eqn{a_{jc} \neq 0}, adding the
+    contributions of all columns: \eqn{\sum_{c'} \theta_{c'} \mathrm{ssums}_{cc'} / s}
+    (LDAK `.cats`; LDAK's annotation mode counts every SNP in every column, here
+    membership is \eqn{a_{jc} \neq 0}, as in LDAK's partition mode).}
+  \item{`Enrichment`}{`Share` = `Category` / `h2`; `Expected` = proportion of panel SNPs in
+    the column; `Enrichment` = `Share / Expected` (LDAK `.enrich`).}
+  \item{`intercept`}{\eqn{1 + s a} (1 when `intercept = FALSE`).}
+  \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details.}
+}
 }
 \description{
 Maximises SumHer's approximate likelihood: each \eqn{S_j = Z_j^2} is a

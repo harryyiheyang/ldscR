@@ -20,7 +20,11 @@ Depends:
 Imports:
     data.table (>= 1.12.0),
     arrow,
-    CppMatrix
+    Rcpp,
+    stats,
+    utils
+LinkingTo: Rcpp, RcppEigen
+SystemRequirements: C++17
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

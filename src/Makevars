@@ -1,0 +1,31 @@
+CXX_STD = CXX17
+
+# The matrix-product kernel (la_kernel.cpp) is compiled once per instruction set and chosen at run time
+# (la_dispatch.h), as in plink4r: generic flags everywhere, plus AVX2+FMA and AVX-512 copies on x86-64.
+LDSCR_ARCH := $(shell uname -m 2>/dev/null)
+ifneq ($(filter x86_64 amd64 AMD64 i686 i386,$(LDSCR_ARCH)),)
+LA_OBJECTS = la_generic.o la_avx2.o la_avx512.o
+LA_DEFS = -DLDSCR_LA_X86
+else
+LA_OBJECTS = la_generic.o
+LA_DEFS =
+endif
+
+OBJECTS = RcppExports.o ldsc_univ_bicov.o ldsc_strat.o ldak.o $(LA_OBJECTS)
+# EIGEN_DONT_PARALLELIZE: Eigen never starts threads of its own; parallelism is the OpenMP over LD blocks.
+PKG_CPPFLAGS = -DEIGEN_DONT_PARALLELIZE $(LA_DEFS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -Wno-ignored-attributes
+ifeq ($(OS),Windows_NT)
+PKG_CXXFLAGS += -Wa,-muse-unaligned-vector-move
+endif
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
+
+.PHONY: all
+all: $(SHLIB)
+
+la_generic.o: la_kernel.cpp la_dispatch.h
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -DLDSCR_LA_ISA=generic -c la_kernel.cpp -o $@
+la_avx2.o: la_kernel.cpp la_dispatch.h
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -mavx2 -mfma -DLDSCR_LA_ISA=avx2 -c la_kernel.cpp -o $@
+la_avx512.o: la_kernel.cpp la_dispatch.h
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -mavx2 -mfma -mavx512f -mavx512dq -mavx512vl -mavx512bw -DLDSCR_LA_ISA=avx512 -c la_kernel.cpp -o $@

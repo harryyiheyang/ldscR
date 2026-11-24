@@ -1,19 +1,23 @@
-#' Bivariate LD Score Regression (LDSC) for Cross-Trait Genetic Covariance
+#' Bivariate LD Score Regression (LDSC): genetic covariance and correlation
 #'
-#' `ldsc.bicov` estimates the genetic covariance between two traits by weighted
-#' least squares of \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}.
+#' `ldsc.bicov` regresses \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}
+#' by weighted least squares. By default it also fits the two univariate
+#' regressions ([ldsc.univ()]) on the same SNPs with the same bootstrap draws,
+#' so \eqn{r_g = \mathrm{gcov}/\sqrt{h^2_1 h^2_2}} and its bootstrap SE come
+#' out of the same call. The computation is in C++ (`src/ldsc_univ_bicov.cpp`).
 #'
 #' @param gwas1,gwas2 `data.frame`s with columns `SNP`, `Zscore`, `N`, aligned
 #'   to the same alleles.
-#' @param h21,h22 Heritability estimates of the two traits (used in the weights
-#'   and to report `rg`).
+#' @param h21,h22 `NULL` (default): estimated here. Numbers: used as fixed
+#'   heritabilities in the weights and in `rg` (then `rg.se` ignores their
+#'   uncertainty).
 #' @param LDSC LD-score panel as in [ldsc.univ()] (columns `SNP`, `LDSC`,
 #'   optional `wLD`); all panel SNPs.
-#' @param sampling.time,nblock,block.counts Block bootstrap, as in [ldsc.univ()].
+#' @param sampling.time,nblock Block bootstrap, as in [ldsc.univ()].
 #' @param M Number of panel SNPs (`NULL`: rows of `LDSC`).
-#' @param two.step Chi-square cutoff: the intercept is estimated from SNPs with
-#'   both \eqn{\chi^2_1, \chi^2_2 <} `two.step`, the slope from all SNPs.
-#'   `NULL` = one step.
+#' @param two.step Chi-square cutoff: the intercepts are estimated from SNPs
+#'   with \eqn{\chi^2 <} `two.step` (both traits for the cross-trait fit), the
+#'   slopes from all SNPs. `NULL` = one step.
 #' @param z.max Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.
 #'
 #' @details For bivariate normal \eqn{(z_1, z_2)} with variances
@@ -23,10 +27,12 @@
 #' with \eqn{\mu_j = \mathrm{ecov} + \mathrm{gcov}\, \ell_j \sqrt{N_{1j}N_{2j}}/M}
 #' updated twice; the univariate intercepts in \eqn{v_1, v_2} are set to 1.
 #'
-#' @return A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `rg`
-#'   (`gcov / sqrt(h21 h22)`, no SE: use [ldsc.rg()]), `M`, `M.reg`.
+#' @return A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `h21`,
+#'   `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg` (`h2*.se` are `NA`
+#'   when `h21`, `h22` are supplied). With bootstrap, `$bootstrap` holds the
+#'   replicate vectors and `block.counts`.
 #' @export
-ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL, block.counts = NULL) {
+ldsc.bicov = function(gwas1, gwas2, h21 = NULL, h22 = NULL, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL) {
   gwas1 <- as.data.frame(gwas1); gwas2 <- as.data.frame(gwas2); LDSC <- as.data.frame(LDSC)
   if (is.null(M)) M <- length(unique(LDSC$SNP))
   if (!"wLD" %in% colnames(LDSC)) LDSC$wLD <- LDSC$LDSC
@@ -34,71 +40,31 @@ ldsc.bicov = function(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 
   LDSC <- LDSC[match(common, LDSC$SNP), ]
   gwas1 <- gwas1[match(common, gwas1$SNP), ]
   gwas2 <- gwas2[match(common, gwas2$SNP), ]
-  M.reg <- length(common)
   if (is.null(z.max)) z.max <- .zmax_default(c(gwas1$N, gwas2$N))
-
-  z1 <- .truncate_z(gwas1$Zscore, z.max); z2 <- .truncate_z(gwas2$Zscore, z.max)
-  y <- z1 * z2
-  l <- LDSC$LDSC * sqrt(gwas1$N) * sqrt(gwas2$N) / M
-  X <- cbind(1, l)
-  lw <- 1 / pmax(1, LDSC$wLD)
-  base_var <- (1 + LDSC$LDSC * gwas1$N / M * max(h21, 0)) * (1 + LDSC$LDSC * gwas2$N / M * max(h22, 0))
-  use2 <- !is.null(two.step)
-  S1 <- if (use2) z1^2 < two.step & z2^2 < two.step else rep(TRUE, M.reg)
-  all <- rep(TRUE, M.reg)
-  .xp <- function(w, rows) list(XtX = crossprod(X[rows, , drop = FALSE], X[rows, , drop = FALSE] * w[rows]),
-                                Xty = as.vector(crossprod(X[rows, , drop = FALSE], y[rows] * w[rows])))
-
-  w <- lw / base_var
-  b <- .fit_ab(.xp(w, S1), .xp(w, all), use2)
-  for (i in 1:2) {
-    mu <- b[1] + b[2] * l
-    w <- lw / (base_var + mu^2)
-    b <- .fit_ab(.xp(w, S1), .xp(w, all), use2)
+  cnt <- .boot_counts(.n_groups(length(common), nblock), sampling.time)
+  r <- ldsc_bicov_cpp(as.numeric(gwas1$Zscore), as.numeric(gwas2$Zscore), as.numeric(gwas1$N), as.numeric(gwas2$N),
+                      as.numeric(LDSC$LDSC), as.numeric(LDSC$wLD), as.numeric(M),
+                      if (is.null(h21)) NaN else h21, if (is.null(h22)) NaN else h22,
+                      z.max, .two_step_arg(two.step), as.integer(nblock), cnt, 2L, 1e-12)
+  rg <- r$b[2] / sqrt(r$h21 * r$h22)
+  se <- .ldsc_bootstrap_sd(r$boot)
+  h.se <- c(NA_real_, NA_real_); rg.se <- NA_real_; rg.b <- NULL
+  if (sampling.time > 0) {
+    if (r$estimated_h2) {
+      h.se <- c(stats::sd(r$boot1[, 2]), stats::sd(r$boot2[, 2]))
+      rg.b <- r$boot[, 2] / sqrt(r$boot1[, 2] * r$boot2[, 2])
+    } else {
+      rg.b <- r$boot[, 2] / sqrt(r$h21 * r$h22)
+    }
+    rg.se <- stats::sd(rg.b[is.finite(rg.b)])
   }
-  ecov <- b[1]; gcov <- b[2]
-
-  boot <- sampling.time > 0 || !is.null(block.counts)
-  ecov.se <- gcov.se <- NA_real_
-  if (boot) {
-    IndexList <- .block_index(M.reg, nblock)
-    b1 <- .block_xprod(X, y, w * S1, IndexList)
-    b2 <- .block_xprod(X, y, w, IndexList)
-    cnt <- .boot_counts(length(IndexList), sampling.time, block.counts)
-    est <- t(apply(cnt, 1, function(cc) .fit_ab(.sum_xprod(b1, cc), .sum_xprod(b2, cc), use2)))
-    ecov.se <- sd(est[, 1]); gcov.se <- sd(est[, 2])
+  result <- data.frame(ecov = r$b[1], ecov.se = se[1], gcov = r$b[2], gcov.se = se[2],
+                       h21 = r$h21, h21.se = h.se[1], h22 = r$h22, h22.se = h.se[2],
+                       rg = rg, rg.se = rg.se, M = M, M.reg = length(common))
+  if (sampling.time > 0) {
+    boot <- list(ecov = r$boot[, 1], gcov = r$boot[, 2], rg = rg.b, block.counts = cnt)
+    if (r$estimated_h2) { boot$h21 <- r$boot1[, 2]; boot$h22 <- r$boot2[, 2] }
+    result <- .new_ldsc_bootstrap_result(result, boot)
   }
-  rg <- if (h21 > 0 && h22 > 0) gcov / sqrt(h21 * h22) else NA_real_
-  result <- data.frame(ecov = ecov, ecov.se = ecov.se, gcov = gcov, gcov.se = gcov.se, rg = rg, M = M, M.reg = M.reg)
-  if (boot) result <- .new_ldsc_bootstrap_result(result, list(ecov = est[, 1], gcov = est[, 2], block.counts = cnt))
   result
-}
-
-#' Genetic correlation by LDSC with a joint block bootstrap
-#'
-#' Fits [ldsc.univ()] for both traits and [ldsc.bicov()] on the SNPs common to
-#' both GWAS and the panel, reusing the same bootstrap draws in all three fits,
-#' so that \eqn{r_g = \mathrm{gcov}/\sqrt{h^2_1 h^2_2}} gets a bootstrap SE.
-#'
-#' @inheritParams ldsc.bicov
-#' @return A `data.frame` with `h21`, `h21.se`, `h22`, `h22.se`, `gcov`,
-#'   `gcov.se`, `ecov`, `ecov.se`, `rg`, `rg.se`, `M`, `M.reg`.
-#' @export
-ldsc.rg = function(gwas1, gwas2, LDSC, sampling.time = 500, nblock = 500, M = NULL, two.step = 30, z.max = NULL) {
-  gwas1 <- as.data.frame(gwas1); gwas2 <- as.data.frame(gwas2); LDSC <- as.data.frame(LDSC)
-  if (is.null(M)) M <- length(unique(LDSC$SNP))
-  common <- LDSC$SNP[LDSC$SNP %in% gwas1$SNP & LDSC$SNP %in% gwas2$SNP]
-  gwas1 <- gwas1[match(common, gwas1$SNP), ]
-  gwas2 <- gwas2[match(common, gwas2$SNP), ]
-  if (is.null(z.max)) z.max <- .zmax_default(c(gwas1$N, gwas2$N))
-  B <- length(.block_index(length(common), nblock))
-  cnt <- .boot_counts(B, sampling.time)
-  u1 <- ldsc.univ(gwas1, LDSC, nblock = nblock, M = M, two.step = two.step, z.max = z.max, block.counts = cnt)
-  u2 <- ldsc.univ(gwas2, LDSC, nblock = nblock, M = M, two.step = two.step, z.max = z.max, block.counts = cnt)
-  bc <- ldsc.bicov(gwas1, gwas2, u1$h2, u2$h2, LDSC, nblock = nblock, M = M, two.step = two.step, z.max = z.max, block.counts = cnt)
-  rg.b <- bc$bootstrap$gcov / sqrt(pmax(u1$bootstrap$h2, 0) * pmax(u2$bootstrap$h2, 0))
-  rg.b[!is.finite(rg.b)] <- NA
-  data.frame(h21 = u1$h2, h21.se = u1$h2.se, h22 = u2$h2, h22.se = u2$h2.se,
-             gcov = bc$gcov, gcov.se = bc$gcov.se, ecov = bc$ecov, ecov.se = bc$ecov.se,
-             rg = bc$rg, rg.se = sd(rg.b, na.rm = TRUE), M = M, M.reg = length(common))
 }

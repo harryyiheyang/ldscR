@@ -13,7 +13,8 @@ ldsc.trans(
   LDSC2,
   LDSC_Tran,
   sampling.time = 0,
-  nblock = 500
+  nblock = 500,
+  M = NULL
 )
 }
 \arguments{
@@ -58,16 +59,11 @@ only point estimates will be returned.}
 
 \item{nblock}{Integer. Number of blocks used for block bootstrap standard error
 estimation.}
+
+\item{M}{Number of panel SNPs of the cross-ancestry LD score (`NULL`: rows of `LDSC_Tran`).}
 }
 \value{
-A data.frame with the following columns:
-  \itemize{
-    \item \code{ecov}: Estimated intercept (environmental covariance)
-    \item \code{ecov.se}: Standard error of the intercept
-    \item \code{gcov}: Estimated genetic covariance
-    \item \code{gcov.se}: Standard error of the genetic covariance
-    \item \code{M}: Number of SNPs used in the analysis
-  }
+A data.frame with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `M` (panel SNPs), `M.reg`.
 }
 \description{
 The `ldsc.trans` function performs bivariate genetic covariance estimation
@@ -76,4 +72,8 @@ It estimates the genetic covariance between two traits from different ancestries
 using a cross-ancestry LD score for the regression regressor and ancestry-specific
 LD scores for the variance weights. The function also supports block bootstrap
 for standard error estimation.
+}
+\details{
+Weights \eqn{w_j^{-1} = (1 + \ell_{1j} N_{1j} h_{21}/M)(1 + \ell_{2j} N_{2j} h_{22}/M) + \mu_j^2},
+  \eqn{\mu_j} the fitted mean, updated twice. Computed in C++ (`src/ldsc_univ_bicov.cpp`).
 }
