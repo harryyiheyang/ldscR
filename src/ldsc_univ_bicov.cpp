@@ -72,13 +72,12 @@ Rcpp::List ldsc_univ_cpp(const Eigen::Map<Eigen::VectorXd> z, const Eigen::Map<E
   } catch (const std::exception& e) { Rcpp::stop(e.what()); }
 }
 
-// h21, h22: NaN = estimate them here (univariate LDSC on the same SNPs and draws); given values are used in the
-// weights and in rg as fixed numbers.
+// h21, h22 are always estimated here (univariate LDSC on the same SNPs and the same bootstrap draws).
 // [[Rcpp::export]]
 Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map<Eigen::VectorXd> z2,
                           const Eigen::Map<Eigen::VectorXd> N1, const Eigen::Map<Eigen::VectorXd> N2,
                           const Eigen::Map<Eigen::VectorXd> L, const Eigen::Map<Eigen::VectorXd> wL, double M,
-                          double h21, double h22, double z_max, double two_step, int nblock,
+                          double z_max, double two_step, int nblock,
                           const Rcpp::NumericMatrix& counts, int n_reweight, double tol) {
   const int n = static_cast<int>(z1.size());
   if (z2.size() != n || N1.size() != n || N2.size() != n || L.size() != n || wL.size() != n)
@@ -88,13 +87,9 @@ Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map
     std::vector<int> grp;
     const int B = plink4r::ldsc::equal_groups(n, std::min(nblock, n), grp);
     const Eigen::VectorXd lw = over_count(wL);
-    const bool est_h = std::isnan(h21) || std::isnan(h22);
-    UnivOut u1, u2;
-    if (est_h) {
-      u1 = univ_core(z1, N1, L, lw, M, z_max, two_step, 3, grp, B, counts, tol);  // as ldsc.univ
-      u2 = univ_core(z2, N2, L, lw, M, z_max, two_step, 3, grp, B, counts, tol);
-      h21 = u1.b[1]; h22 = u2.b[1];
-    }
+    const UnivOut u1 = univ_core(z1, N1, L, lw, M, z_max, two_step, 3, grp, B, counts, tol);  // as ldsc.univ
+    const UnivOut u2 = univ_core(z2, N2, L, lw, M, z_max, two_step, 3, grp, B, counts, tol);
+    const double h21 = u1.b[1], h22 = u2.b[1];
     const bool two = two_step > 0;
     Eigen::MatrixXd X(n, 2);
     Eigen::VectorXd y(n), v(n);
@@ -121,7 +116,7 @@ Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map
                               Rcpp::Named("h21") = h21, Rcpp::Named("h22") = h22,
                               Rcpp::Named("boot1") = Rcpp::wrap(u1.est), Rcpp::Named("boot2") = Rcpp::wrap(u2.est),
                               Rcpp::Named("univ1") = Rcpp::wrap(u1.b), Rcpp::Named("univ2") = Rcpp::wrap(u2.b),
-                              Rcpp::Named("estimated_h2") = est_h, Rcpp::Named("B") = B);
+                              Rcpp::Named("B") = B);
   } catch (const std::exception& e) { Rcpp::stop(e.what()); }
 }
 

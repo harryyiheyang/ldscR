@@ -101,8 +101,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ldsc_bicov_cpp
-Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map<Eigen::VectorXd> z2, const Eigen::Map<Eigen::VectorXd> N1, const Eigen::Map<Eigen::VectorXd> N2, const Eigen::Map<Eigen::VectorXd> L, const Eigen::Map<Eigen::VectorXd> wL, double M, double h21, double h22, double z_max, double two_step, int nblock, const Rcpp::NumericMatrix& counts, int n_reweight, double tol);
-RcppExport SEXP _ldscR_ldsc_bicov_cpp(SEXP z1SEXP, SEXP z2SEXP, SEXP N1SEXP, SEXP N2SEXP, SEXP LSEXP, SEXP wLSEXP, SEXP MSEXP, SEXP h21SEXP, SEXP h22SEXP, SEXP z_maxSEXP, SEXP two_stepSEXP, SEXP nblockSEXP, SEXP countsSEXP, SEXP n_reweightSEXP, SEXP tolSEXP) {
+Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map<Eigen::VectorXd> z2, const Eigen::Map<Eigen::VectorXd> N1, const Eigen::Map<Eigen::VectorXd> N2, const Eigen::Map<Eigen::VectorXd> L, const Eigen::Map<Eigen::VectorXd> wL, double M, double z_max, double two_step, int nblock, const Rcpp::NumericMatrix& counts, int n_reweight, double tol);
+RcppExport SEXP _ldscR_ldsc_bicov_cpp(SEXP z1SEXP, SEXP z2SEXP, SEXP N1SEXP, SEXP N2SEXP, SEXP LSEXP, SEXP wLSEXP, SEXP MSEXP, SEXP z_maxSEXP, SEXP two_stepSEXP, SEXP nblockSEXP, SEXP countsSEXP, SEXP n_reweightSEXP, SEXP tolSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -113,15 +113,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type L(LSEXP);
     Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type wL(wLSEXP);
     Rcpp::traits::input_parameter< double >::type M(MSEXP);
-    Rcpp::traits::input_parameter< double >::type h21(h21SEXP);
-    Rcpp::traits::input_parameter< double >::type h22(h22SEXP);
     Rcpp::traits::input_parameter< double >::type z_max(z_maxSEXP);
     Rcpp::traits::input_parameter< double >::type two_step(two_stepSEXP);
     Rcpp::traits::input_parameter< int >::type nblock(nblockSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type counts(countsSEXP);
     Rcpp::traits::input_parameter< int >::type n_reweight(n_reweightSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(ldsc_bicov_cpp(z1, z2, N1, N2, L, wL, M, h21, h22, z_max, two_step, nblock, counts, n_reweight, tol));
+    rcpp_result_gen = Rcpp::wrap(ldsc_bicov_cpp(z1, z2, N1, N2, L, wL, M, z_max, two_step, nblock, counts, n_reweight, tol));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -155,7 +153,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ldscR_sumher_cpp", (DL_FUNC) &_ldscR_sumher_cpp, 6},
     {"_ldscR_ldsc_strat_cpp", (DL_FUNC) &_ldscR_ldsc_strat_cpp, 18},
     {"_ldscR_ldsc_univ_cpp", (DL_FUNC) &_ldscR_ldsc_univ_cpp, 11},
-    {"_ldscR_ldsc_bicov_cpp", (DL_FUNC) &_ldscR_ldsc_bicov_cpp, 15},
+    {"_ldscR_ldsc_bicov_cpp", (DL_FUNC) &_ldscR_ldsc_bicov_cpp, 13},
     {"_ldscR_ldsc_trans_cpp", (DL_FUNC) &_ldscR_ldsc_trans_cpp, 14},
     {NULL, NULL, 0}
 };

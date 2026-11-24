@@ -63,7 +63,7 @@ test_that("ldsc.bicov estimates h2 internally and gives rg with a bootstrap SE",
   z1 <- rnorm(M) * s; z2 <- 0.6 * z1 + sqrt(1 - 0.36) * rnorm(M) * s
   g1 <- data.frame(SNP = ld$SNP, Zscore = z1, N = N); g2 <- data.frame(SNP = ld$SNP, Zscore = z2, N = N)
   set.seed(1)
-  f <- ldsc.bicov(g1, g2, LDSC = ld, sampling.time = 50, nblock = 50)
+  f <- ldsc.bicov(g1, g2, ld, sampling.time = 50, nblock = 50)
   set.seed(1)
   u <- ldsc.univ(g1, ld, sampling.time = 50, nblock = 50)
   expect_equal(f$h21, u$h2, tolerance = 1e-10)

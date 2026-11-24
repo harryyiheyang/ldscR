@@ -7,8 +7,6 @@
 ldsc.bicov(
   gwas1,
   gwas2,
-  h21 = NULL,
-  h22 = NULL,
   LDSC,
   sampling.time = 0,
   nblock = 500,
@@ -20,10 +18,6 @@ ldsc.bicov(
 \arguments{
 \item{gwas1, gwas2}{`data.frame`s with columns `SNP`, `Zscore`, `N`, aligned
 to the same alleles.}
-
-\item{h21, h22}{`NULL` (default): estimated here. Numbers: used as fixed
-heritabilities in the weights and in `rg` (then `rg.se` ignores their
-uncertainty).}
 
 \item{LDSC}{LD-score panel as in [ldsc.univ()] (columns `SNP`, `LDSC`,
 optional `wLD`); all panel SNPs.}
@@ -40,16 +34,15 @@ slopes from all SNPs. `NULL` = one step.}
 }
 \value{
 A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `h21`,
-  `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg` (`h2*.se` are `NA`
-  when `h21`, `h22` are supplied). With bootstrap, `$bootstrap` holds the
-  replicate vectors and `block.counts`.
+  `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg`. With bootstrap,
+  `$bootstrap` holds the replicate vectors and `block.counts`.
 }
 \description{
 `ldsc.bicov` regresses \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}
-by weighted least squares. By default it also fits the two univariate
-regressions ([ldsc.univ()]) on the same SNPs with the same bootstrap draws,
-so \eqn{r_g = \mathrm{gcov}/\sqrt{h^2_1 h^2_2}} and its bootstrap SE come
-out of the same call. The computation is in C++ (`src/ldsc_univ_bicov.cpp`).
+by weighted least squares. It always fits the two univariate regressions
+([ldsc.univ()]) on the same SNPs inside the same bootstrap: every replicate
+re-estimates \eqn{h^2_1}, \eqn{h^2_2} and the covariance, so
+\eqn{r_g = \mathrm{gcov}/\sqrt{h^2_1 h^2_2}} and all SEs come from one set of draws. The computation is in C++ (`src/ldsc_univ_bicov.cpp`).
 }
 \details{
 For bivariate normal \eqn{(z_1, z_2)} with variances

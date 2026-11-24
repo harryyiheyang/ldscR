@@ -17,8 +17,8 @@ ldsc_univ_cpp <- function(z, N, L, wL, M, z_max, two_step, nblock, counts, n_rew
     .Call(`_ldscR_ldsc_univ_cpp`, z, N, L, wL, M, z_max, two_step, nblock, counts, n_reweight, tol)
 }
 
-ldsc_bicov_cpp <- function(z1, z2, N1, N2, L, wL, M, h21, h22, z_max, two_step, nblock, counts, n_reweight, tol) {
-    .Call(`_ldscR_ldsc_bicov_cpp`, z1, z2, N1, N2, L, wL, M, h21, h22, z_max, two_step, nblock, counts, n_reweight, tol)
+ldsc_bicov_cpp <- function(z1, z2, N1, N2, L, wL, M, z_max, two_step, nblock, counts, n_reweight, tol) {
+    .Call(`_ldscR_ldsc_bicov_cpp`, z1, z2, N1, N2, L, wL, M, z_max, two_step, nblock, counts, n_reweight, tol)
 }
 
 ldsc_trans_cpp <- function(z1, z2, N1, N2, L1, L2, L12, M, h21, h22, nblock, counts, n_reweight, tol) {

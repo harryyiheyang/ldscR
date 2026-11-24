@@ -71,8 +71,6 @@ test_that("ldsc.bicov exposes the existing bootstrap results", {
     fit <- ldsc.bicov(
       inputs$gwas1,
       inputs$gwas2,
-      h21 = 0.01,
-      h22 = 0.012,
       LDSC = inputs$ldsc,
       sampling.time = sampling.time,
       nblock = 8,
@@ -90,9 +88,9 @@ test_that("ldsc.bicov exposes the existing bootstrap results", {
   expect_identical(dim(fit$bootstrap$block.counts), c(sampling.time, 8L))
   expect_true(all(rowSums(fit$bootstrap$block.counts) == 8L))
 
-  # Fixtures re-recorded after the Var(z1 z2) = v1 v2 + mu^2 weight fix (was + 2 mu^2).
-  expect_equal(fit$ecov, 1.09195263738475, tolerance = 1e-12)
-  expect_equal(fit$gcov, 0.0108557041443598, tolerance = 1e-12)
-  expect_equal(fit$ecov.se, 0.0187387326690772, tolerance = 1e-12)
-  expect_equal(fit$gcov.se, 0.000113435044986247, tolerance = 1e-12)
+  # Fixtures re-recorded: Var(z1 z2) = v1 v2 + mu^2 weights, h21 and h22 estimated inside ldsc.bicov.
+  expect_equal(fit$ecov, 1.09194136966973, tolerance = 1e-12)
+  expect_equal(fit$gcov, 0.0108557833818878, tolerance = 1e-12)
+  expect_equal(fit$ecov.se, 0.0187300476150324, tolerance = 1e-12)
+  expect_equal(fit$gcov.se, 0.000113372728088476, tolerance = 1e-12)
 })
