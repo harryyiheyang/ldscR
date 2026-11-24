@@ -102,3 +102,16 @@ test_that("sumher ridge: no effect with only the Base column, lambda chosen with
   expect_true(f$lambda %in% c(0, 10^seq(-6, 2, length.out = 49)))
   expect_equal(nrow(f$cv), 50)
 })
+
+test_that("ldak.tagging with Block/Index uses exactly the selected SNPs", {
+  set.seed(12)
+  m <- 80; n <- 400
+  G <- matrix(rbinom(n * m, 2, 0.3), n, m); for (j in 2:m) G[, j] <- ifelse(runif(n) < 0.6, G[, j - 1], G[, j])
+  R <- cor(G); e <- eigen(R, symmetric = TRUE)
+  f <- tempfile(fileext = ".eigen.bin"); write_eigen_bin(f, e$vectors, e$values)
+  keep <- sort(sample.int(m, 50))
+  info <- data.frame(SNP = paste0("s", keep), A1 = "A", A2 = "C", Freq = colMeans(G[, keep]) / 2, Block = 1, Index = keep - 1L)
+  tg <- ldak.tagging(f, info, alpha = -1, weights = "none")
+  expect_equal(tg$M, 50)
+  expect_equal(tg$tagging$Base, as.vector(rowSums(R[keep, keep]^2)), tolerance = 1e-4)
+})

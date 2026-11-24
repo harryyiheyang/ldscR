@@ -54,7 +54,11 @@ write_eigen_bin <- function(file, U, lambda, cutoff = 1) {
 #'
 #' @param eigen.files Paths of the eigen blocks, in panel order.
 #' @param snp.info `data.frame` with columns `SNP`, `A1`, `A2`, `Freq` (A1
-#'   frequency), one row per panel SNP, in the order of the blocks.
+#'   frequency), one row per panel SNP, in the order of the blocks. With columns
+#'   `Block` and `Index` (0-based eigen row in the block file), only these rows are
+#'   used: the panel becomes exactly these SNPs (LD = the principal submatrix of
+#'   each block's stored LD; all sums and \eqn{M} run over them), e.g. the SNPs kept
+#'   after aligning a GWAS. Rows sorted by Block (in the order of `eigen.files`), then Index.
 #' @param annot Optional `data.frame` with `SNP` then annotation columns (any
 #'   SNP not listed gets 0). A `Base` column of ones is always added first.
 #' @param alpha Power \eqn{\alpha} (LDAK `--power`): -0.25 for the LDAK-Thin /
@@ -94,10 +98,19 @@ ldak.tagging <- function(eigen.files, snp.info, annot = NULL, alpha = -0.25, wei
   if (is.numeric(weights)) { mode <- 2L; wu <- as.numeric(weights); weights <- "user" } else {
     weights <- match.arg(weights); mode <- if (weights == "thin") 1L else 0L; wu <- numeric(M)
   }
-  sizes <- vapply(eigen.files, function(f) { con <- file(f, "rb"); on.exit(close(con)); readBin(con, "integer", 1, size = 4) }, 1L)
-  if (sum(sizes) != M) stop("eigen blocks have ", sum(sizes), " SNPs but snp.info has ", M)
+  if ("Index" %in% names(snp.info)) {
+    if (!"Block" %in% names(snp.info)) stop("snp.info with Index also needs Block")
+    if (anyDuplicated(rle(as.vector(snp.info$Block))$values)) stop("the rows of each Block of snp.info must be contiguous, in the order of eigen.files")
+    sizes <- as.vector(table(factor(snp.info$Block, levels = unique(snp.info$Block))))
+    if (length(sizes) != length(eigen.files)) stop("one eigen file per Block of snp.info is needed")
+    rows <- as.integer(snp.info$Index)
+  } else {
+    sizes <- vapply(eigen.files, function(f) { con <- file(f, "rb"); on.exit(close(con)); readBin(con, "integer", 1, size = 4) }, 1L)
+    if (sum(sizes) != M) stop("eigen blocks have ", sum(sizes), " SNPs but snp.info has ", M)
+    rows <- integer(0)
+  }
   r <- ldak_tagging_cpp(normalizePath(eigen.files), c(0L, cumsum(sizes)), as.numeric(snp.info$Freq), A, alpha, mode, wu,
-                        thin.r2, if (is.null(n.ref)) 0 else n.ref, reg, isTRUE(normalize), thresh, as.integer(chunk),
+                        thin.r2, if (is.null(n.ref)) 0 else n.ref, reg, rows, isTRUE(normalize), thresh, as.integer(chunk),
                         as.integer(threads))
   V <- r$V; colnames(V) <- colnames(A)
   P <- A * r$exp

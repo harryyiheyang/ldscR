@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // ldak_tagging_cpp
-Rcpp::List ldak_tagging_cpp(Rcpp::CharacterVector files, Rcpp::IntegerVector offset, const Eigen::Map<Eigen::VectorXd> freq, const Eigen::Map<Eigen::MatrixXd> A, double alpha, int weight_mode, const Eigen::Map<Eigen::VectorXd> w_user, double thin_r2, double n_ref, const Rcpp::IntegerVector& reg, bool normalize, double thresh, int chunk, int threads);
-RcppExport SEXP _ldscR_ldak_tagging_cpp(SEXP filesSEXP, SEXP offsetSEXP, SEXP freqSEXP, SEXP ASEXP, SEXP alphaSEXP, SEXP weight_modeSEXP, SEXP w_userSEXP, SEXP thin_r2SEXP, SEXP n_refSEXP, SEXP regSEXP, SEXP normalizeSEXP, SEXP threshSEXP, SEXP chunkSEXP, SEXP threadsSEXP) {
+Rcpp::List ldak_tagging_cpp(Rcpp::CharacterVector files, Rcpp::IntegerVector offset, const Eigen::Map<Eigen::VectorXd> freq, const Eigen::Map<Eigen::MatrixXd> A, double alpha, int weight_mode, const Eigen::Map<Eigen::VectorXd> w_user, double thin_r2, double n_ref, const Rcpp::IntegerVector& reg, const Rcpp::IntegerVector& rows, bool normalize, double thresh, int chunk, int threads);
+RcppExport SEXP _ldscR_ldak_tagging_cpp(SEXP filesSEXP, SEXP offsetSEXP, SEXP freqSEXP, SEXP ASEXP, SEXP alphaSEXP, SEXP weight_modeSEXP, SEXP w_userSEXP, SEXP thin_r2SEXP, SEXP n_refSEXP, SEXP regSEXP, SEXP rowsSEXP, SEXP normalizeSEXP, SEXP threshSEXP, SEXP chunkSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -27,11 +27,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type thin_r2(thin_r2SEXP);
     Rcpp::traits::input_parameter< double >::type n_ref(n_refSEXP);
     Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type reg(regSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type rows(rowsSEXP);
     Rcpp::traits::input_parameter< bool >::type normalize(normalizeSEXP);
     Rcpp::traits::input_parameter< double >::type thresh(threshSEXP);
     Rcpp::traits::input_parameter< int >::type chunk(chunkSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ldak_tagging_cpp(files, offset, freq, A, alpha, weight_mode, w_user, thin_r2, n_ref, reg, normalize, thresh, chunk, threads));
+    rcpp_result_gen = Rcpp::wrap(ldak_tagging_cpp(files, offset, freq, A, alpha, weight_mode, w_user, thin_r2, n_ref, reg, rows, normalize, thresh, chunk, threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -153,7 +154,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ldscR_ldak_tagging_cpp", (DL_FUNC) &_ldscR_ldak_tagging_cpp, 14},
+    {"_ldscR_ldak_tagging_cpp", (DL_FUNC) &_ldscR_ldak_tagging_cpp, 15},
     {"_ldscR_sumher_cpp", (DL_FUNC) &_ldscR_sumher_cpp, 10},
     {"_ldscR_ldsc_strat_cpp", (DL_FUNC) &_ldscR_ldsc_strat_cpp, 18},
     {"_ldscR_ldsc_univ_cpp", (DL_FUNC) &_ldscR_ldsc_univ_cpp, 11},

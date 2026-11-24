@@ -23,7 +23,11 @@ ldak.tagging(
 \item{eigen.files}{Paths of the eigen blocks, in panel order.}
 
 \item{snp.info}{`data.frame` with columns `SNP`, `A1`, `A2`, `Freq` (A1
-frequency), one row per panel SNP, in the order of the blocks.}
+frequency), one row per panel SNP, in the order of the blocks. With columns
+`Block` and `Index` (0-based eigen row in the block file), only these rows are
+used: the panel becomes exactly these SNPs (LD = the principal submatrix of
+each block's stored LD; all sums and \eqn{M} run over them), e.g. the SNPs kept
+after aligning a GWAS. Rows sorted by Block (in the order of `eigen.files`), then Index.}
 
 \item{annot}{Optional `data.frame` with `SNP` then annotation columns (any
 SNP not listed gets 0). A `Base` column of ones is always added first.}

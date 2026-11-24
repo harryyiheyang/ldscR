@@ -31,16 +31,22 @@
 #include "resources.h"
 
 // files: eigen.bin of each block; offset: B + 1 row offsets into the panel; freq: allele frequency; A: panel x Q
-// annotations (column 1 = all ones); weight_mode 0 = all 1, 1 = thin, 2 = w_user; reg: regression SNP (0/1).
+// annotations (column 1 = all ones); weight_mode 0 = all 1, 1 = thin, 2 = w_user; reg: regression SNP (0/1);
+// rows: 0-based eigen row of every panel row (a subset of each block's rows, so that the LD is that of exactly
+// these SNPs: the principal submatrix of the stored block LD), or empty = every row of every block.
 // [[Rcpp::export]]
 Rcpp::List ldak_tagging_cpp(Rcpp::CharacterVector files, Rcpp::IntegerVector offset,
                             const Eigen::Map<Eigen::VectorXd> freq, const Eigen::Map<Eigen::MatrixXd> A, double alpha,
                             int weight_mode, const Eigen::Map<Eigen::VectorXd> w_user, double thin_r2, double n_ref,
-                            const Rcpp::IntegerVector& reg, bool normalize, double thresh, int chunk, int threads) {
+                            const Rcpp::IntegerVector& reg, const Rcpp::IntegerVector& rows, bool normalize,
+                            double thresh, int chunk, int threads) {
   const int T = plink4r::resolve_threads(threads);
   const int nb = files.size(), M = static_cast<int>(A.rows()), Q = static_cast<int>(A.cols());
   if (offset.size() != nb + 1 || offset[0] != 0 || offset[nb] != M) Rcpp::stop("offset does not match the panel");
   if (freq.size() != M || reg.size() != M) Rcpp::stop("freq / reg do not match the panel");
+  const bool subset = rows.size() > 0;
+  if (subset && rows.size() != M) Rcpp::stop("rows must have one entry per panel row");
+  const std::vector<int> rowv(rows.begin(), rows.end());
   const std::vector<std::string> fv = Rcpp::as<std::vector<std::string>>(files);
   const std::vector<int> off(offset.begin(), offset.end());
   const std::vector<int> regv(reg.begin(), reg.end());
@@ -60,8 +66,18 @@ Rcpp::List ldak_tagging_cpp(Rcpp::CharacterVector files, Rcpp::IntegerVector off
     try {
       const plink4r::EigenBlock ld = plink4r::read_eigen_block(fv[i], thresh);
       const int m = off[i + 1] - off[i], s0 = off[i];
-      if (ld.m != m) throw std::runtime_error("the block has " + std::to_string(ld.m) + " eigen rows, the panel " + std::to_string(m));
-      const Eigen::MatrixXf& U = ld.U;                                 // m x k
+      Eigen::MatrixXf Usub;
+      if (subset) {
+        Usub.resize(m, ld.U.cols());
+        for (int j = 0; j < m; ++j) {
+          const int r = rowv[s0 + j];
+          if (r < 0 || r >= ld.m) throw std::runtime_error("eigen row " + std::to_string(r) + " outside the block");
+          Usub.row(j) = ld.U.row(r);
+        }
+      } else if (ld.m != m) {
+        throw std::runtime_error("the block has " + std::to_string(ld.m) + " eigen rows, the panel " + std::to_string(m));
+      }
+      const Eigen::MatrixXf& U = subset ? Usub : ld.U;                 // m x k
       const int k = static_cast<int>(U.cols());
       const Eigen::VectorXf lam = ld.lambda.cwiseMax(0.0f);
       const Eigen::MatrixXf W = U * lam.asDiagonal();                 // rows w_j = diag(lam) u_j
