@@ -234,27 +234,13 @@ fit3 <- ldsc.bicov(
   gwas2 = gwaslist$computer,
   LDSC = Hapmap3_EURLDSC,
   nblock = 500,
-  sampling.time = 200,
-  h21 = fit1$h2,
-  h22 = fit2$h2
-)
+  sampling.time = 200
+)  # h21, h22, gcov, ecov and rg are all re-estimated in the same bootstrap
 ```
-
-    ## [1] "Processing data"
-    ## Time difference of 1.244697 secs
-    ## [1] "Initial Genetic Covariance Estimate"
-    ## Time difference of 0.02895212 secs
-    ## [1] "Genetic Covariance Reweighting"
-    ## Time difference of 0.04821205 secs
-    ## [1] "Standard Error Estimation"
-    ## Time difference of 14.46051 secs
 
 ``` r
-fit3  # Genetic and sample-overlap covariance between traits
+fit3  # columns: ecov, ecov.se, gcov, gcov.se, h21, h21.se, h22, h22.se, rg, rg.se, M
 ```
-
-    ##         ecov     ecov.se        gcov      gcov.se       M
-    ## 1 0.05856721 0.005963673 0.000789279 0.0008040988 1038356
 
 ## Step 6: Construct Covariance Matrices
 

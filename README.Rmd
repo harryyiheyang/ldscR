@@ -118,10 +118,8 @@ fit3 <- ldsc.bicov(
   gwas2 = gwaslist$computer,
   LDSC = Hapmap3_EURLDSC,
   nblock = 500,
-  sampling.time = 200,
-  h21 = fit1$h2,
-  h22 = fit2$h2
-)
+  sampling.time = 200
+)  # h21, h22, gcov, ecov and rg are all re-estimated in the same bootstrap
 
 fit3  # Genetic and sample-overlap covariance between traits
 ```
