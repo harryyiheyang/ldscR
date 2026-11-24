@@ -37,14 +37,16 @@ test_that("ldsc.univ exposes the existing bootstrap results", {
       inputs$gwas1,
       inputs$ldsc,
       sampling.time = sampling.time,
-      nblock = 8
+      nblock = 8,
+      two.step = NULL,
+      z.max = Inf
     )
   ))
 
   expect_true(is.data.frame(fit))
   expect_identical(
     names(fit),
-    c("intercept", "intercept.se", "h2", "h2.se", "M")
+    c("intercept", "intercept.se", "h2", "h2.se", "M", "M.reg")
   )
   expect_length(fit$bootstrap$intercept, sampling.time)
   expect_length(fit$bootstrap$h2, sampling.time)
@@ -73,12 +75,14 @@ test_that("ldsc.bicov exposes the existing bootstrap results", {
       h22 = 0.012,
       LDSC = inputs$ldsc,
       sampling.time = sampling.time,
-      nblock = 8
+      nblock = 8,
+      two.step = NULL,
+      z.max = Inf
     )
   ))
 
   expect_true(is.data.frame(fit))
-  expect_identical(names(fit), c("ecov", "ecov.se", "gcov", "gcov.se", "M"))
+  expect_identical(names(fit), c("ecov", "ecov.se", "gcov", "gcov.se", "rg", "M", "M.reg"))
   expect_length(fit$bootstrap$ecov, sampling.time)
   expect_length(fit$bootstrap$gcov, sampling.time)
   expect_equal(sd(fit$bootstrap$ecov), fit$ecov.se)
@@ -86,9 +90,9 @@ test_that("ldsc.bicov exposes the existing bootstrap results", {
   expect_identical(dim(fit$bootstrap$block.counts), c(sampling.time, 8L))
   expect_true(all(rowSums(fit$bootstrap$block.counts) == 8L))
 
-  # Point-estimate fixtures recorded from commit 1a61a3c7514e18e9be6f7ba51b6a3b5cc243d9c0.
-  expect_equal(fit$ecov, 1.09191563125987, tolerance = 1e-12)
-  expect_equal(fit$gcov, 0.0108559635665973, tolerance = 1e-12)
-  expect_equal(fit$ecov.se, 0.018710523779377, tolerance = 1e-12)
-  expect_equal(fit$gcov.se, 0.000113233054989818, tolerance = 1e-12)
+  # Fixtures re-recorded after the Var(z1 z2) = v1 v2 + mu^2 weight fix (was + 2 mu^2).
+  expect_equal(fit$ecov, 1.09195263738475, tolerance = 1e-12)
+  expect_equal(fit$gcov, 0.0108557041443598, tolerance = 1e-12)
+  expect_equal(fit$ecov.se, 0.0187387326690772, tolerance = 1e-12)
+  expect_equal(fit$gcov.se, 0.000113435044986247, tolerance = 1e-12)
 })

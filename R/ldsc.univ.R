@@ -1,172 +1,78 @@
 #' Univariate LD Score Regression (LDSC) for SNP-Heritability
 #'
-#' `ldsc.univ` estimates SNP-heritability for a single trait using
-#' Linkage Disequilibrium Score Regression (LDSC). The function harmonizes the
-#' GWAS summary statistics with an LD-score table, fits a weighted least squares
-#' (WLS) regression of \eqn{Z_j^2} on the LD regressor, and performs an optional
-#' block bootstrap for standard errors.
+#' `ldsc.univ` estimates SNP-heritability for a single trait by weighted least
+#' squares of \eqn{Z_j^2} on \eqn{(1, \ell_j N_j / M)}, with an optional block
+#' bootstrap for standard errors.
 #'
-#' @param gwas A `data.frame` or `data.table` of GWAS summary statistics for one trait.
-#'   Required columns:
-#'   \itemize{
-#'     \item `SNP` — SNP identifier
-#'     \item `Zscore` — Z-score of the SNP–trait association
-#'     \item `N` — per-SNP sample size
-#'     \item `A1` — effect allele
-#'     \item `A2` — reference allele
-#'   }
-#'   Only `SNP`, `Zscore`, and `N` are used in the computation; alleles are kept
-#'   for consistency checks and downstream use.
-#' @param LDSC A `data.frame` or `data.table` containing LD scores.
-#'   Required columns:
-#'   \itemize{
-#'     \item `SNP` — SNP identifier
-#'     \item `LDSC` — LD score
-#'   }
-#' @param nblock Integer. Number of blocks for block bootstrap.
-#' @param sampling.time Integer. Number of bootstrap replicates. If `0`, only
-#'   point estimates are returned.
+#' @param gwas A `data.frame` with columns `SNP`, `Zscore`, `N` (alleles must
+#'   already be aligned to the LD panel, e.g. with [filter_align()]).
+#' @param LDSC A `data.frame` with columns `SNP` and `LDSC` (LD score). An
+#'   optional column `wLD` gives the LD score used in the over-counting weight
+#'   \eqn{1/\max(1, \ell^{w}_j)} (default: `LDSC`). This must be the whole
+#'   LD panel: SNPs missing from the GWAS stay in the table.
+#' @param sampling.time Number of bootstrap replicates (`0` = point estimates only).
+#' @param nblock Number of contiguous SNP blocks for the bootstrap.
+#' @param M Number of SNPs over which the LD scores were summed. `NULL` uses
+#'   the number of SNPs in `LDSC` (the panel), not the number of regression
+#'   SNPs: \eqn{E[\chi^2_j] = a + N h^2 \ell_j / M_{panel}} holds whichever
+#'   SNPs the GWAS reports.
+#' @param two.step Chi-square cutoff for the two-step estimator: the intercept
+#'   is estimated from SNPs with \eqn{\chi^2 <} `two.step`, then the slope from
+#'   all SNPs with the intercept fixed. `NULL` fits both in one step.
+#' @param z.max Z-scores are truncated (not removed) to `[-z.max, z.max]`.
+#'   `NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}, the ldsc chi-square cap.
+#' @param block.counts Optional bootstrap count matrix (replicates x blocks) to
+#'   reuse the draws of another fit (see [ldsc.rg()]).
 #'
-#' @details
-#' Let \eqn{M} be the number of SNPs after harmonization. The regressor is
-#' \eqn{\ell_j = \mathrm{LDSC}_j \, N_j / M}, and we regress \eqn{Z_j^2} on
-#' \eqn{(1, \ell_j)} with WLS. Initial weights use a small ridge factor
-#' \eqn{(1 + 0.1 \, \ell_j)^{-2}}, followed by an efficiency reweighting that
-#' plugs in the estimated heritability \eqn{\hat h^2}:
-#' \eqn{w_j = (1 + \ell_j \, \hat h^2)^{-2}}.
+#' @details Weights: \eqn{w_j = 1/\max(1, \ell^{w}_j) / (1 + \hat h^2 N_j \ell_j / M)^2},
+#' started from \eqn{\hat h^2 = 0.1} and updated three times; the intercept in
+#' the weights is set to 1.
 #'
-#' @return A `data.frame` with:
-#' \itemize{
-#'   \item `intercept` — estimated LDSC intercept
-#'   \item `intercept.se` — standard error of `intercept` (bootstrap; `NA` if no bootstrap)
-#'   \item `h2` — estimated SNP-heritability (slope)
-#'   \item `h2.se` — standard error of `h2` (bootstrap; `NA` if no bootstrap)
-#'   \item `M` — number of SNPs analyzed
-#' }
-#' When `sampling.time > 0`, `$bootstrap` contains the numeric vectors
-#' `intercept` and `h2`, plus `block.counts`, the block-count matrix used for
-#' resampling (one replicate per row and one block per column).
-#'
+#' @return A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
+#'   (panel SNPs) and `M.reg` (regression SNPs). With bootstrap, `$bootstrap`
+#'   holds the replicate vectors and `block.counts`.
 #' @importFrom CppMatrix matrixMultiply matrixVectorMultiply
 #' @importFrom data.table setDT setkey
 #' @export
-ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500) {
-############################# PART 1 #########################################
-gwas <- data.table::copy(as.data.frame(gwas))
-LDSC <- data.table::copy(as.data.frame(LDSC))
-t0 <- Sys.time()
-data.table::setDT(LDSC)
-data.table::setDT(gwas)
-common_snps <- gwas$SNP[gwas$SNP %in% LDSC$SNP]
-gwas <- gwas[match(common_snps, SNP), ]
-LDSC <- LDSC[match(common_snps, SNP), ]
-gwas$LDSC <- LDSC$LDSC
-M <- nrow(gwas)
-t0 <- Sys.time() - t0
-print("Processing data"); print(t0)
-.wls_fit <- function(l, z, w) {
-  X   <- cbind(1, l)
-  XtX <- CppMatrix::matrixMultiply(t(X), X * w)
-  Xty <- CppMatrix::matrixVectorMultiply(t(X), z * w)
-  as.vector(solve(XtX) %*% Xty)
-}
-t1 <- Sys.time()
-z <- gwas$Zscore^2
-l <- gwas$LDSC * gwas$N / M
-w <- 1 / pmax(1, gwas$LDSC) / (1 + 0.1 * l)^2
-beta <- .wls_fit(l, z, w)
-h2.ini <- beta[2]
-intercept.ini <- beta[1]
-t1 <- Sys.time() - t1
-print("Initial Heritability Estimate"); print(t1)
-############################# PART 2 #########################################
-t2 <- Sys.time()
-w  <- 1 / (1 + l * h2.ini)^2/ pmax(1, gwas$LDSC)
-beta <- .wls_fit(l, z, w)
-h2 <- beta[2]; intercept <- beta[1]
+ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL, block.counts = NULL) {
+  gwas <- as.data.frame(gwas); LDSC <- as.data.frame(LDSC)
+  if (is.null(M)) M <- length(unique(LDSC$SNP))
+  if (!"wLD" %in% colnames(LDSC)) LDSC$wLD <- LDSC$LDSC
+  common <- gwas$SNP[gwas$SNP %in% LDSC$SNP]
+  gwas <- gwas[match(common, gwas$SNP), ]
+  LDSC <- LDSC[match(common, LDSC$SNP), ]
+  M.reg <- nrow(gwas)
+  if (is.null(z.max)) z.max <- .zmax_default(gwas$N)
 
-w  <- 1 / (1 + l * h2)^2/ pmax(1, gwas$LDSC)
-beta <- .wls_fit(l, z, w)
-h2 <- beta[2]; intercept <- beta[1]
+  y <- .truncate_z(gwas$Zscore, z.max)^2
+  l <- LDSC$LDSC * gwas$N / M
+  X <- cbind(1, l)
+  lw <- 1 / pmax(1, LDSC$wLD)
+  use2 <- !is.null(two.step)
+  S1 <- if (use2) y < two.step else rep(TRUE, M.reg)
+  all <- rep(TRUE, M.reg)
+  .xp <- function(w, rows) list(XtX = crossprod(X[rows, , drop = FALSE], X[rows, , drop = FALSE] * w[rows]),
+                                Xty = as.vector(crossprod(X[rows, , drop = FALSE], y[rows] * w[rows])))
 
-w  <- 1 / (1 + l * h2)^2/ pmax(1, gwas$LDSC)
-beta <- .wls_fit(l, z, w)
-h2 <- beta[2]; intercept <- beta[1]
+  w <- lw / (1 + 0.1 * l)^2
+  beta <- .fit_ab(.xp(w, S1), .xp(w, all), use2)
+  for (i in 1:3) {
+    w <- lw / (1 + l * max(beta[2], 0))^2
+    beta <- .fit_ab(.xp(w, S1), .xp(w, all), use2)
+  }
+  intercept <- beta[1]; h2 <- beta[2]
 
-t2 <- Sys.time() - t2
-print("Heritability Estimation (Reweighted)"); print(t2)
-############################# PART 3 #########################################
-if (sampling.time > 0) {
-t3 <- Sys.time()
-
-X <- cbind(1, l)
-blocksize <- floor(M / nblock)
-rem <- M - blocksize * nblock
-if (rem >= 0.5 * blocksize) {
-block_lengths <- c(rep(blocksize, nblock), rem)
-} else {
-if (rem > 0) {
-block_lengths <- c(rep(blocksize, nblock - 1), blocksize + rem)
-} else {
-block_lengths <- rep(blocksize, nblock)
-}
-}
-B <- length(block_lengths)
-starts <- cumsum(c(1, head(block_lengths, -1)))
-IndexList <- lapply(seq_len(B), function(b) starts[b]:(starts[b] + block_lengths[b] - 1))
-
-XtXlist <- vector("list", B)
-Xtylist <- vector("list", B)
-for (b in seq_len(B)) {
-indi <- IndexList[[b]]
-Xi   <- X[indi, , drop = FALSE]
-wi   <- w[indi]
-zi   <- z[indi]
-XtXlist[[b]] <- CppMatrix::matrixMultiply(t(Xi), Xi * wi)
-Xtylist[[b]] <- CppMatrix::matrixVectorMultiply(t(Xi), zi * wi)
-}
-
-h2.vec <- numeric(sampling.time)
-intercept.vec <- numeric(sampling.time)
-block.counts <- matrix(0L, nrow = sampling.time, ncol = B)
-colnames(block.counts) <- paste0("block", seq_len(B))
-
-for (r in seq_len(sampling.time)) {
-draw <- sample.int(B, B, replace = TRUE)
-cnt  <- tabulate(draw, nbins = B)
-block.counts[r, ] <- cnt
-sel  <- which(cnt > 0L)
-
-XtXi <- matrix(0, 2, 2)
-Xtyi <- numeric(2)
-for (j in sel) {
-cj   <- cnt[j]
-XtXi <- XtXi + cj * XtXlist[[j]]
-Xtyi <- Xtyi + cj * Xtylist[[j]]
-}
-beta <- as.vector(solve(XtXi, Xtyi))
-intercept.vec[r] <- beta[1]
-h2.vec[r]        <- beta[2]
-}
-
-t3 <- Sys.time() - t3
-print("Standard Error Estimation"); print(t3)
-
-intercept.se <- sd(intercept.vec)
-h2.se        <- sd(h2.vec)
-} else {
-h2.se <- intercept.se <- NA_real_
-}
-
-result <- data.frame(intercept = intercept, intercept.se = intercept.se,
-h2 = h2, h2.se = h2.se,
-M = M)
-if (sampling.time > 0) {
-result <- .new_ldsc_bootstrap_result(result, list(
-intercept = intercept.vec,
-h2 = h2.vec,
-block.counts = block.counts
-))
-}
-result
+  boot <- sampling.time > 0 || !is.null(block.counts)
+  h2.se <- intercept.se <- NA_real_
+  if (boot) {
+    IndexList <- .block_index(M.reg, nblock)
+    b1 <- .block_xprod(X, y, w * S1, IndexList)
+    b2 <- .block_xprod(X, y, w, IndexList)
+    cnt <- .boot_counts(length(IndexList), sampling.time, block.counts)
+    est <- t(apply(cnt, 1, function(cc) .fit_ab(.sum_xprod(b1, cc), .sum_xprod(b2, cc), use2)))
+    intercept.se <- sd(est[, 1]); h2.se <- sd(est[, 2])
+  }
+  result <- data.frame(intercept = intercept, intercept.se = intercept.se, h2 = h2, h2.se = h2.se, M = M, M.reg = M.reg)
+  if (boot) result <- .new_ldsc_bootstrap_result(result, list(intercept = est[, 1], h2 = est[, 2], block.counts = cnt))
+  result
 }

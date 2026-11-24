@@ -82,7 +82,7 @@ stopifnot(identical(g1$SNP, g2$SNP),
       identical(g1$SNP, L1$SNP),
       identical(g1$SNP, L2$SNP))
 
-M <- nrow(g1)
+M <- length(unique(LDSC_Tran$SNP))  # panel SNPs, not regression SNPs
 z <- g1$Zscore * g2$Zscore
 l <- L12$LDSC * sqrt(g1$N) * sqrt(g2$N) / M
 X <- cbind(1, l)
@@ -96,11 +96,11 @@ as.vector(solve(XtX, Xty))
 b <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
 mu <- ecov + gcov * l
-w  <- 1 / (base_var + 2 * mu^2)
+w  <- 1 / (base_var + mu^2)
 b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
 mu <- ecov + gcov * l
-w  <- 1 / (base_var + 2 * mu^2)
+w  <- 1 / (base_var + mu^2)
 b  <- .fit(X, z, w); ecov <- b[1]; gcov <- b[2]
 
 if (sampling.time > 0) {

@@ -2,65 +2,55 @@
 % Please edit documentation in R/ldsc.bicov.R
 \name{ldsc.bicov}
 \alias{ldsc.bicov}
-\title{Bivariate LD Score Regression (LDSC) for Cross‑Trait Genetic Covariance}
+\title{Bivariate LD Score Regression (LDSC) for Cross-Trait Genetic Covariance}
 \usage{
-ldsc.bicov(gwas1, gwas2, h21, h22, LDSC, sampling.time = 0, nblock = 500)
+ldsc.bicov(
+  gwas1,
+  gwas2,
+  h21,
+  h22,
+  LDSC,
+  sampling.time = 0,
+  nblock = 500,
+  M = NULL,
+  two.step = 30,
+  z.max = NULL,
+  block.counts = NULL
+)
 }
 \arguments{
-\item{gwas1}{A `data.frame`/`data.table` of GWAS summary statistics for trait 1.
-Required columns:
-\itemize{
-  \item `SNP` — SNP identifier
-  \item `Zscore` — Z‑score of the SNP–trait association
-  \item `N` — per‑SNP sample size
-}}
+\item{gwas1, gwas2}{`data.frame`s with columns `SNP`, `Zscore`, `N`, aligned
+to the same alleles.}
 
-\item{gwas2}{A `data.frame`/`data.table` of GWAS summary statistics for trait 2,
-with the same required columns as `gwas1`.}
+\item{h21, h22}{Heritability estimates of the two traits (used in the weights
+and to report `rg`).}
 
-\item{h21}{Numeric. Heritability estimate of trait 1 (used in weights).}
+\item{LDSC}{LD-score panel as in [ldsc.univ()] (columns `SNP`, `LDSC`,
+optional `wLD`); all panel SNPs.}
 
-\item{h22}{Numeric. Heritability estimate of trait 2 (used in weights).}
+\item{sampling.time, nblock, block.counts}{Block bootstrap, as in [ldsc.univ()].}
 
-\item{LDSC}{A `data.frame`/`data.table` containing LD scores. Required columns:
-\itemize{
-  \item `SNP` — SNP identifier
-  \item `LDSC` — LD score
-}}
+\item{M}{Number of panel SNPs (`NULL`: rows of `LDSC`).}
 
-\item{sampling.time}{Integer. Number of bootstrap replicates. If `0`, only
-point estimates are returned.}
+\item{two.step}{Chi-square cutoff: the intercept is estimated from SNPs with
+both \eqn{\chi^2_1, \chi^2_2 <} `two.step`, the slope from all SNPs.
+`NULL` = one step.}
 
-\item{nblock}{Integer. Number of blocks for block bootstrap.}
+\item{z.max}{Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.}
 }
 \value{
-A `data.frame` with:
-\itemize{
-  \item `ecov` — estimated intercept (environmental covariance)
-  \item `ecov.se` — standard error of `ecov` (bootstrap; `NA` if no bootstrap)
-  \item `gcov` — estimated genetic covariance (slope)
-  \item `gcov.se` — standard error of `gcov` (bootstrap; `NA` if no bootstrap)
-  \item `M` — number of SNPs analyzed
-}
-When `sampling.time > 0`, `$bootstrap` contains the numeric vectors `ecov`
-and `gcov`, plus `block.counts`, the block-count matrix used for resampling
-(one replicate per row and one block per column).
+A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `rg`
+  (`gcov / sqrt(h21 h22)`, no SE: use [ldsc.rg()]), `M`, `M.reg`.
 }
 \description{
-`ldsc.bicov` estimates the genetic covariance between two traits using
-LD Score Regression (LDSC). The function harmonizes two GWAS
-summary-statistic tables with an LD‑score table, fits a weighted least
-squares (WLS) regression of \eqn{z_{1j} z_{2j}} on the LD regressor, and
-performs one (optional) reweighting step for efficiency. Block bootstrap
-can be used to obtain standard errors.
+`ldsc.bicov` estimates the genetic covariance between two traits by weighted
+least squares of \eqn{z_{1j} z_{2j}} on \eqn{(1, \ell_j \sqrt{N_{1j} N_{2j}} / M)}.
 }
 \details{
-Let \eqn{M} be the number of SNPs after harmonization. The regressor is
-\eqn{\ell_j = \mathrm{LDSC}_j \sqrt{N_{1j}} \sqrt{N_{2j}} / M}. The initial
-WLS uses weights
-\deqn{w_j^{-1} = \bigl(1 + \mathrm{LDSC}_j N_{1j} h_{21} / M \bigr)
-                    \bigl(1 + \mathrm{LDSC}_j N_{2j} h_{22} / M \bigr),}
-followed by an efficiency reweighting with the mean term
-\eqn{\mu_j = \mathrm{ecov} + \mathrm{gcov} \cdot \ell_j} via
-\eqn{w_j^{-1} \leftarrow w_j^{-1} + 2 \mu_j^2}.
+For bivariate normal \eqn{(z_1, z_2)} with variances
+\eqn{v_1, v_2} and covariance \eqn{\mu},
+\eqn{\mathrm{Var}(z_1 z_2) = v_1 v_2 + \mu^2}. The weights are therefore
+\deqn{w_j^{-1} = \max(1, \ell^{w}_j)\,[(1 + N_{1j} h_{21} \ell_j / M)(1 + N_{2j} h_{22} \ell_j / M) + \mu_j^2],}
+with \eqn{\mu_j = \mathrm{ecov} + \mathrm{gcov}\, \ell_j \sqrt{N_{1j}N_{2j}}/M}
+updated twice; the univariate intercepts in \eqn{v_1, v_2} are set to 1.
 }

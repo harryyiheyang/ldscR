@@ -2,7 +2,7 @@ Package: ldscR
 Type: Package
 Title: Heritability and Genetic Correlation Matrix Estimation Using Linkage 
     Disequilibrium Score Regression
-Version: 0.1.0
+Version: 0.2.0
 Author: Yihe Yang
 Maintainer: Yihe Yang <yxy1234@case.edu>
 Description: This package provides tools for estimating heritability and genetic 
@@ -23,5 +23,5 @@ Imports:
     CppMatrix
 Suggests:
     testthat (>= 3.0.0)
-RoxygenNote: 7.3.3
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

@@ -3,11 +3,23 @@
 S3method("$",ldsc_bootstrap_result)
 export(download_7MLDSC)
 export(filter_align)
+export(ldak.as.ldsc)
+export(ldak.tagging)
 export(ldsc.bicov)
+export(ldsc.rg)
 export(ldsc.strat)
 export(ldsc.trans)
 export(ldsc.univ)
-importFrom(CppMatrix,matrixMultiply)
-importFrom(CppMatrix,matrixVectorMultiply)
-importFrom(data.table,setDT)
-importFrom(data.table,setkey)
+export(read_eigen_bin)
+export(read_ldak_tagging)
+export(sumher)
+export(write_eigen_bin)
+export(write_ldak_tagging)
+importFrom(CppMatrix,
+  matrixMultiply,
+  matrixVectorMultiply
+)
+importFrom(data.table,
+  setDT,
+  setkey
+)

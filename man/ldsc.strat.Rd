@@ -13,7 +13,8 @@ ldsc.strat(
   intercetp = T,
   intercetp.lower = 0.9,
   intercetp.upper = 2,
-  z.max = 50,
+  two.step = NULL,
+  z.max = NULL,
   ridge = FALSE,
   lambda = NULL,
   lambda.grid = c(0, 10^seq(-6, 2, length.out = 49))
@@ -24,10 +25,14 @@ ldsc.strat(
 
 \item{SLDSC}{`data.frame` with column `SNP`, then the LD-score columns; the
 first LD-score column is the overall LD score (used in the weights). An
-optional column `Block` gives the LD-block index of every SNP.}
+optional column `Block` gives the LD-block index of every SNP, and an
+optional column `wLD` the LD score for the over-counting weight
+(default: the first LD-score column).}
 
 \item{annot}{`data.frame` with column `SNP`, then the annotation columns in
-the same order as the LD-score columns (the first is the all-ones column).}
+the same order as the LD-score columns (the first is the all-ones column).
+It must cover the whole panel (every SNP the LD scores were summed over),
+because \eqn{h^2_c = \tau_c \sum_{j \in panel} a_{jc}}.}
 
 \item{sampling.time}{Number of block-bootstrap replicates; used only when
 `SLDSC` has no `Block` column. `0` returns point estimates only.}
@@ -41,13 +46,19 @@ fixed at 1.}
 
 \item{intercetp.lower, intercetp.upper}{Bounds for \eqn{a}.}
 
-\item{z.max}{Z-scores are truncated to `[-z.max, z.max]` (not removed).}
+\item{two.step}{Chi-square cutoff for the two-step estimator: \eqn{a} is
+estimated (with all \eqn{\tau_c}) from SNPs with \eqn{\chi^2 <} `two.step`,
+then the \eqn{\tau_c} from all SNPs with \eqn{a} fixed. `NULL` (default) =
+one step: selecting SNPs on \eqn{\chi^2} biases the step-1 intercept upward
+when many SNPs exceed the cutoff, and ldsc does not allow the two-step with
+partitioned LD scores.}
+
+\item{z.max}{Z-scores are truncated to `[-z.max, z.max]` (not removed).
+`NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}.}
 
 \item{ridge}{If `TRUE`, the \eqn{\tau_c} are estimated by ridge regression
 with penalty \eqn{\lambda \sum_c v_c \tau_c^2}, where \eqn{v_c} is the
-variance of annotation column \eqn{c} over the SNPs (\eqn{p_c(1-p_c)} for a
-0/1 column). This penalises the standardized effects
-\eqn{\tau_c \, \mathrm{sd}(a_c)} equally. The all-ones column
+variance of annotation column \eqn{c} over the SNPs. The all-ones column
 (\eqn{v = 0}) and the \eqn{1/N} term are not penalised.}
 
 \item{lambda}{Ridge parameter on the scale of `lambda.grid` (a multiple of
@@ -57,11 +68,12 @@ leave-one-block-out cross-validation.}
 \item{lambda.grid}{Candidate values for the cross-validation.}
 }
 \value{
-A list with `H2_summary` (total and per-column heritability
-  \eqn{\tau_c \sum_j a_{jc}}), `Parameter_summary` (row `Intercept` = \eqn{a},
-  then \eqn{\tau_c}), `SE_method`, and with `ridge = TRUE` the chosen `lambda`
-  and the cross-validation table `cv` (error minus its minimum). Standard
-  errors under ridge are for the fixed chosen `lambda`.
+A list with `H2_summary` (total and per-column \eqn{\tau_c \sum_j a_{jc}}),
+  `Parameter_summary` (row `Intercept` = \eqn{a}, then \eqn{\tau_c}),
+  `Enrichment_summary` (for 0/1 annotations: share of SNPs, share of
+  \eqn{h^2} carried by the SNPs in the category including overlaps,
+  \eqn{(A^\top A \tau)_c / h^2}, and their ratio), `SE_method`, and with
+  `ridge = TRUE` the chosen `lambda` and the cross-validation table `cv`.
 }
 \description{
 `ldsc.strat` fits stratified LDSC with the squared standardized effect
@@ -74,11 +86,11 @@ confounding). With the weights below this is the same regression as
 }
 \details{
 Standard errors. If `SLDSC` has a `Block` column, they are leave-one-block-out
-(LOBO) jackknife standard errors over the LD blocks, and `sampling.time` and
-`nblock` are ignored. Otherwise they are block-bootstrap standard errors over
-`nblock` contiguous blocks (rows must be in genomic order). The bound on
-\eqn{a} is applied in every leave-out or bootstrap fit, as in the full fit.
+(LOBO) jackknife standard errors over the LD blocks. Otherwise they are
+block-bootstrap standard errors over `nblock` contiguous blocks (rows must
+be in genomic order). The bound on \eqn{a} and the two-step are applied in
+every leave-out or bootstrap fit, as in the full fit.
 
-Weights: \eqn{w_j = 1 / \max(1, \ell_{j1}) / (1/N_j + \hat h^2 \ell_{j1} / M)^2},
-three reweighting rounds, then fixed.
+Weights: \eqn{w_j = 1 / \max(1, \ell^{w}_j) / (1/N_j + \hat h^2 \ell_{j1} / M)^2},
+with \eqn{M} the number of panel SNPs; three reweighting rounds, then fixed.
 }

@@ -4,58 +4,57 @@
 \alias{ldsc.univ}
 \title{Univariate LD Score Regression (LDSC) for SNP-Heritability}
 \usage{
-ldsc.univ(gwas, LDSC, sampling.time = 0, nblock = 500)
+ldsc.univ(
+  gwas,
+  LDSC,
+  sampling.time = 0,
+  nblock = 500,
+  M = NULL,
+  two.step = 30,
+  z.max = NULL,
+  block.counts = NULL
+)
 }
 \arguments{
-\item{gwas}{A `data.frame` or `data.table` of GWAS summary statistics for one trait.
-Required columns:
-\itemize{
-  \item `SNP` — SNP identifier
-  \item `Zscore` — Z-score of the SNP–trait association
-  \item `N` — per-SNP sample size
-  \item `A1` — effect allele
-  \item `A2` — reference allele
-}
-Only `SNP`, `Zscore`, and `N` are used in the computation; alleles are kept
-for consistency checks and downstream use.}
+\item{gwas}{A `data.frame` with columns `SNP`, `Zscore`, `N` (alleles must
+already be aligned to the LD panel, e.g. with [filter_align()]).}
 
-\item{LDSC}{A `data.frame` or `data.table` containing LD scores.
-Required columns:
-\itemize{
-  \item `SNP` — SNP identifier
-  \item `LDSC` — LD score
-}}
+\item{LDSC}{A `data.frame` with columns `SNP` and `LDSC` (LD score). An
+optional column `wLD` gives the LD score used in the over-counting weight
+\eqn{1/\max(1, \ell^{w}_j)} (default: `LDSC`). This must be the whole
+LD panel: SNPs missing from the GWAS stay in the table.}
 
-\item{sampling.time}{Integer. Number of bootstrap replicates. If `0`, only
-point estimates are returned.}
+\item{sampling.time}{Number of bootstrap replicates (`0` = point estimates only).}
 
-\item{nblock}{Integer. Number of blocks for block bootstrap.}
+\item{nblock}{Number of contiguous SNP blocks for the bootstrap.}
+
+\item{M}{Number of SNPs over which the LD scores were summed. `NULL` uses
+the number of SNPs in `LDSC` (the panel), not the number of regression
+SNPs: \eqn{E[\chi^2_j] = a + N h^2 \ell_j / M_{panel}} holds whichever
+SNPs the GWAS reports.}
+
+\item{two.step}{Chi-square cutoff for the two-step estimator: the intercept
+is estimated from SNPs with \eqn{\chi^2 <} `two.step`, then the slope from
+all SNPs with the intercept fixed. `NULL` fits both in one step.}
+
+\item{z.max}{Z-scores are truncated (not removed) to `[-z.max, z.max]`.
+`NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}, the ldsc chi-square cap.}
+
+\item{block.counts}{Optional bootstrap count matrix (replicates x blocks) to
+reuse the draws of another fit (see [ldsc.rg()]).}
 }
 \value{
-A `data.frame` with:
-\itemize{
-  \item `intercept` — estimated LDSC intercept
-  \item `intercept.se` — standard error of `intercept` (bootstrap; `NA` if no bootstrap)
-  \item `h2` — estimated SNP-heritability (slope)
-  \item `h2.se` — standard error of `h2` (bootstrap; `NA` if no bootstrap)
-  \item `M` — number of SNPs analyzed
-}
-When `sampling.time > 0`, `$bootstrap` contains the numeric vectors
-`intercept` and `h2`, plus `block.counts`, the block-count matrix used for
-resampling (one replicate per row and one block per column).
+A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
+  (panel SNPs) and `M.reg` (regression SNPs). With bootstrap, `$bootstrap`
+  holds the replicate vectors and `block.counts`.
 }
 \description{
-`ldsc.univ` estimates SNP-heritability for a single trait using
-Linkage Disequilibrium Score Regression (LDSC). The function harmonizes the
-GWAS summary statistics with an LD-score table, fits a weighted least squares
-(WLS) regression of \eqn{Z_j^2} on the LD regressor, and performs an optional
-block bootstrap for standard errors.
+`ldsc.univ` estimates SNP-heritability for a single trait by weighted least
+squares of \eqn{Z_j^2} on \eqn{(1, \ell_j N_j / M)}, with an optional block
+bootstrap for standard errors.
 }
 \details{
-Let \eqn{M} be the number of SNPs after harmonization. The regressor is
-\eqn{\ell_j = \mathrm{LDSC}_j \, N_j / M}, and we regress \eqn{Z_j^2} on
-\eqn{(1, \ell_j)} with WLS. Initial weights use a small ridge factor
-\eqn{(1 + 0.1 \, \ell_j)^{-2}}, followed by an efficiency reweighting that
-plugs in the estimated heritability \eqn{\hat h^2}:
-\eqn{w_j = (1 + \ell_j \, \hat h^2)^{-2}}.
+Weights: \eqn{w_j = 1/\max(1, \ell^{w}_j) / (1 + \hat h^2 N_j \ell_j / M)^2},
+started from \eqn{\hat h^2 = 0.1} and updated three times; the intercept in
+the weights is set to 1.
 }
