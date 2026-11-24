@@ -27,11 +27,9 @@
 #'   fixed at 1.
 #' @param intercetp.lower,intercetp.upper Bounds for \eqn{a}.
 #' @param two.step Chi-square cutoff for the two-step estimator: \eqn{a} is
-#'   estimated (with all \eqn{\tau_c}) from SNPs with \eqn{\chi^2 <} `two.step`,
-#'   then the \eqn{\tau_c} from all SNPs with \eqn{a} fixed. `NULL` (default) =
-#'   one step: selecting SNPs on \eqn{\chi^2} biases the step-1 intercept upward
-#'   when many SNPs exceed the cutoff, and ldsc does not allow the two-step with
-#'   partitioned LD scores.
+#'   estimated (with all \eqn{\tau_c}) from the fit with \eqn{\chi^2} truncated at
+#'   `two.step` (all SNPs kept), then the \eqn{\tau_c} from the full statistics with
+#'   \eqn{a} fixed. `NULL` (default) = one step.
 #' @param z.max Z-scores are truncated to `[-z.max, z.max]` (not removed).
 #'   `NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}.
 #' @param ridge If `TRUE`, the \eqn{\tau_c} are estimated by ridge regression

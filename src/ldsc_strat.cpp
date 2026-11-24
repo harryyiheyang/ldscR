@@ -3,7 +3,7 @@
 // Regressors (1 / N_j, L_j1..L_jC), L_j1 the overall LD score. Weights
 // w_j = 1 / max(1, wL_j) / (1 / N_j + h2 L_j1 / M)^2 with M the panel SNPs and h2 = sum_c tau_c acov_c, acov the
 // annotation sums over the whole panel; started at h2 = 0.1 M / M... (w_init) and updated n_reweight times.
-// a is estimated inside [lo, hi] or fixed at 1; optional two-step (a from chi^2 < two_step).
+// a is estimated inside [lo, hi] or fixed at 1; optional two-step (a from the fit with chi^2 truncated at two_step).
 // SEs: leave-one-block-out jackknife over `block` (jackknife = TRUE) or bootstrap with `counts` over `block`.
 // Ridge: penalty lambda * u * sum_c v_c tau_c^2, lambda given or chosen by leave-one-block-out CV.
 // Apanel: the annotations of all panel SNPs (for acov, the overlap matrix A'A and the variances).
@@ -44,8 +44,7 @@ Rcpp::List ldsc_strat_cpp(const Eigen::Map<Eigen::VectorXd> z, const Eigen::Map<
   const Eigen::MatrixXd overlap = Apanel.transpose() * Apanel;
 
   Eigen::MatrixXd X(n, K);
-  Eigen::VectorXd y(n), lw(n), invN(n);
-  std::vector<char> s1(n);
+  Eigen::VectorXd y(n), y1(n), lw(n), invN(n);
   int n_trunc = 0;
   for (int j = 0; j < n; ++j) {
     const double az = std::abs(z[j]);
@@ -55,7 +54,7 @@ Rcpp::List ldsc_strat_cpp(const Eigen::Map<Eigen::VectorXd> z, const Eigen::Map<
     y[j] = zt * zt * invN[j];
     lw[j] = 1.0 / std::max(1.0, wL[j]);
     X(j, 0) = invN[j];
-    s1[j] = zt * zt < two_step;
+    y1[j] = (two_step > 0 ? std::min(zt * zt, two_step) : zt * zt) * invN[j];
   }
   X.rightCols(C) = L;
   Intercept ic;
@@ -68,15 +67,15 @@ Rcpp::List ldsc_strat_cpp(const Eigen::Map<Eigen::VectorXd> z, const Eigen::Map<
       return Eigen::VectorXd(lw.array() / (invN.array() + std::max(h2, 0.0) * L.col(0).array() / M).square());
     };
     Eigen::VectorXd w = weights(0.1);
-    Eigen::VectorXd b = fit2_rows(X, y, w, s1, ic, two, tol);
+    Eigen::VectorXd b = fit2_rows(X, y1, y, w, ic, two, tol);
     double h2 = b.tail(C).dot(acov);
     for (int it = 0; it < n_reweight; ++it) {
       w = weights(h2);
-      b = fit2_rows(X, y, w, s1, ic, two, tol);
+      b = fit2_rows(X, y1, y, w, ic, two, tol);
       h2 = b.tail(C).dot(acov);
     }
 
-    const Sums2 s = block_sums2(X, y, w, s1, grp, B, two);
+    const Sums2 s = block_sums2(X, y1, y, w, grp, B, two);
     Eigen::MatrixXd Pen = Eigen::MatrixXd::Zero(K, K);
     double lambda_used = NA_REAL;
     Rcpp::NumericVector cv;

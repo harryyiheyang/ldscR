@@ -1,7 +1,7 @@
 // Two-step fits and resampling on top of ldsc_kernel.h (from plink4r).
-// A fit uses two sets of group sums: s1 over the step-1 SNPs (chi^2 < cutoff) and s2 over all SNPs. With the
-// two-step, the intercept (first coefficient) comes from s1 and the slopes from s2 with the intercept fixed;
-// without it, s2 alone.
+// A fit uses two sets of group sums over all SNPs: s1 with the step-1 outcome y1 (the statistic truncated at the
+// two-step cutoff; no SNP is dropped) and s2 with the outcome y. With the two-step, the intercept (first
+// coefficient) comes from s1 and the slopes from s2 with the intercept fixed; without it, s2 alone.
 #ifndef LDSCR_LDSC_FIT_H
 #define LDSCR_LDSC_FIT_H
 
@@ -17,31 +17,24 @@ inline Eigen::VectorXd fit2(const Eigen::MatrixXd& A1, const Eigen::VectorXd& v1
   return fit_at(A2, v2, a, tol);
 }
 
-inline Eigen::VectorXd fit2_rows(const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::VectorXd& w,
-                                 const std::vector<char>& s1, const Intercept& ic, bool two, double tol) {
+inline Eigen::VectorXd fit2_rows(const Eigen::MatrixXd& X, const Eigen::VectorXd& y1, const Eigen::VectorXd& y,
+                                 const Eigen::VectorXd& w, const Intercept& ic, bool two, double tol) {
   const Eigen::MatrixXd Xw = w.asDiagonal() * X;
   const Eigen::MatrixXd A2 = X.transpose() * Xw;
   const Eigen::VectorXd v2 = Xw.transpose() * y;
   if (!two) return fit_intercept(A2, v2, ic, tol);
-  Eigen::VectorXd w1 = w;
-  for (int i = 0; i < w1.size(); ++i) if (!s1[i]) w1[i] = 0;
-  const Eigen::MatrixXd Xw1 = w1.asDiagonal() * X;
-  return fit2(X.transpose() * Xw1, Xw1.transpose() * y, A2, v2, ic, two, tol);
+  return fit2(A2, Xw.transpose() * y1, A2, v2, ic, two, tol);
 }
 
 struct Sums2 {
   Sums s1, s2;
 };
 
-inline Sums2 block_sums2(const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::VectorXd& w,
-                         const std::vector<char>& s1, const std::vector<int>& grp, int B, bool two) {
+inline Sums2 block_sums2(const Eigen::MatrixXd& X, const Eigen::VectorXd& y1, const Eigen::VectorXd& y,
+                         const Eigen::VectorXd& w, const std::vector<int>& grp, int B, bool two) {
   Sums2 out;
   out.s2 = block_sums(X, y, w, grp, B);
-  if (two) {
-    Eigen::VectorXd w1 = w;
-    for (int i = 0; i < w1.size(); ++i) if (!s1[i]) w1[i] = 0;
-    out.s1 = block_sums(X, y, w1, grp, B);
-  }
+  if (two) out.s1 = block_sums(X, y1, w, grp, B);
   return out;
 }
 

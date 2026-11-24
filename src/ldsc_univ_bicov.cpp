@@ -4,7 +4,8 @@
 // bicov: y_j = z1_j z2_j (both truncated) on (1, l_j), l_j = L_j sqrt(N1_j N2_j) / M;
 //        w_j = 1 / max(1, wL_j) / (v1_j v2_j + mu_j^2), v_i = 1 + L_j N_ij h2_i / M, mu_j = ecov + gcov l_j
 //        (Var(z1 z2) = v1 v2 + mu^2 for bivariate normal z), updated n_reweight times.
-// Two-step (two_step > 0): intercept from SNPs with chi^2 < two_step (both traits for bicov), slope from all SNPs.
+// Two-step (two_step > 0): intercept from the regression with the statistic truncated at two_step (chi^2 for univ,
+// each |z| at sqrt(two_step) for bicov; no SNP is dropped), slope from the full statistic with the intercept fixed.
 // Standard errors: block bootstrap over contiguous SNP groups with the final weights; replicate r uses group b
 // counts(r, b) times. bicov fits both univariate regressions on the same SNPs and the same draws, so rg has a
 // bootstrap SE without a separate function.
@@ -28,26 +29,25 @@ UnivOut univ_core(const Eigen::VectorXd& z, const Eigen::VectorXd& N, const Eige
   const int n = static_cast<int>(z.size());
   const bool two = two_step > 0;
   Eigen::MatrixXd X(n, 2);
-  Eigen::VectorXd y(n);
-  std::vector<char> s1(n);
+  Eigen::VectorXd y(n), y1(n);
   for (int j = 0; j < n; ++j) {
     const double zt = std::min(std::abs(z[j]), z_max);
     y[j] = zt * zt;
+    y1[j] = two ? std::min(y[j], two_step) : y[j];
     X(j, 0) = 1.0;
     X(j, 1) = L[j] * N[j] / M;
-    s1[j] = y[j] < two_step;
   }
   const Intercept ic;
   Eigen::VectorXd w = lw.array() / (1.0 + 0.1 * X.col(1).array()).square();
-  Eigen::VectorXd b = fit2_rows(X, y, w, s1, ic, two, tol);
+  Eigen::VectorXd b = fit2_rows(X, y1, y, w, ic, two, tol);
   for (int it = 0; it < n_reweight; ++it) {
     w = lw.array() / (1.0 + std::max(b[1], 0.0) * X.col(1).array()).square();
-    b = fit2_rows(X, y, w, s1, ic, two, tol);
+    b = fit2_rows(X, y1, y, w, ic, two, tol);
   }
   UnivOut out;
   out.b = b;
   out.est = Eigen::MatrixXd(0, 2);
-  if (counts.nrow() > 0) out.est = refit2(block_sums2(X, y, w, s1, grp, B, two), counts, Eigen::MatrixXd::Zero(2, 2), ic, two, tol);
+  if (counts.nrow() > 0) out.est = refit2(block_sums2(X, y1, y, w, grp, B, two), counts, Eigen::MatrixXd::Zero(2, 2), ic, two, tol);
   return out;
 }
 
@@ -92,26 +92,27 @@ Rcpp::List ldsc_bicov_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map
     const double h21 = u1.b[1], h22 = u2.b[1];
     const bool two = two_step > 0;
     Eigen::MatrixXd X(n, 2);
-    Eigen::VectorXd y(n), v(n);
-    std::vector<char> s1(n);
+    Eigen::VectorXd y(n), y1(n), v(n);
+    const double c1 = two ? std::sqrt(two_step) : z_max;
     for (int j = 0; j < n; ++j) {
       const double a1 = std::min(std::abs(z1[j]), z_max), a2 = std::min(std::abs(z2[j]), z_max);
-      y[j] = (z1[j] < 0 ? -a1 : a1) * (z2[j] < 0 ? -a2 : a2);
+      const double sg = (z1[j] < 0 ? -1.0 : 1.0) * (z2[j] < 0 ? -1.0 : 1.0);
+      y[j] = sg * a1 * a2;
+      y1[j] = sg * std::min(a1, c1) * std::min(a2, c1);
       X(j, 0) = 1.0;
       X(j, 1) = L[j] * std::sqrt(N1[j]) * std::sqrt(N2[j]) / M;
       v[j] = (1.0 + L[j] * N1[j] / M * std::max(h21, 0.0)) * (1.0 + L[j] * N2[j] / M * std::max(h22, 0.0));
-      s1[j] = a1 * a1 < two_step && a2 * a2 < two_step;
     }
     const Intercept ic;
     Eigen::VectorXd w = lw.cwiseQuotient(v);
-    Eigen::VectorXd b = fit2_rows(X, y, w, s1, ic, two, tol);
+    Eigen::VectorXd b = fit2_rows(X, y1, y, w, ic, two, tol);
     for (int it = 0; it < n_reweight; ++it) {
       const Eigen::ArrayXd mu = b[0] + b[1] * X.col(1).array();
       w = lw.array() / (v.array() + mu.square());
-      b = fit2_rows(X, y, w, s1, ic, two, tol);
+      b = fit2_rows(X, y1, y, w, ic, two, tol);
     }
     Eigen::MatrixXd est(0, 2);
-    if (counts.nrow() > 0) est = refit2(block_sums2(X, y, w, s1, grp, B, two), counts, Eigen::MatrixXd::Zero(2, 2), ic, two, tol);
+    if (counts.nrow() > 0) est = refit2(block_sums2(X, y1, y, w, grp, B, two), counts, Eigen::MatrixXd::Zero(2, 2), ic, two, tol);
     return Rcpp::List::create(Rcpp::Named("b") = Rcpp::wrap(b), Rcpp::Named("boot") = Rcpp::wrap(est),
                               Rcpp::Named("h21") = h21, Rcpp::Named("h22") = h22,
                               Rcpp::Named("boot1") = Rcpp::wrap(u1.est), Rcpp::Named("boot2") = Rcpp::wrap(u2.est),
@@ -134,7 +135,6 @@ Rcpp::List ldsc_trans_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map
     const int B = plink4r::ldsc::equal_groups(n, std::min(nblock, n), grp);
     Eigen::MatrixXd X(n, 2);
     Eigen::VectorXd y(n), v(n);
-    std::vector<char> s1(n, 1);
     for (int j = 0; j < n; ++j) {
       y[j] = z1[j] * z2[j];
       X(j, 0) = 1.0;
@@ -143,14 +143,14 @@ Rcpp::List ldsc_trans_cpp(const Eigen::Map<Eigen::VectorXd> z1, const Eigen::Map
     }
     const Intercept ic;
     Eigen::VectorXd w = v.cwiseInverse();
-    Eigen::VectorXd b = fit2_rows(X, y, w, s1, ic, false, tol);
+    Eigen::VectorXd b = fit2_rows(X, y, y, w, ic, false, tol);
     for (int it = 0; it < n_reweight; ++it) {
       const Eigen::ArrayXd mu = b[0] + b[1] * X.col(1).array();
       w = 1.0 / (v.array() + mu.square());
-      b = fit2_rows(X, y, w, s1, ic, false, tol);
+      b = fit2_rows(X, y, y, w, ic, false, tol);
     }
     Eigen::MatrixXd est(0, 2);
-    if (counts.nrow() > 0) est = refit2(block_sums2(X, y, w, s1, grp, B, false), counts, Eigen::MatrixXd::Zero(2, 2), ic, false, tol);
+    if (counts.nrow() > 0) est = refit2(block_sums2(X, y, y, w, grp, B, false), counts, Eigen::MatrixXd::Zero(2, 2), ic, false, tol);
     return Rcpp::List::create(Rcpp::Named("b") = Rcpp::wrap(b), Rcpp::Named("boot") = Rcpp::wrap(est), Rcpp::Named("B") = B);
   } catch (const std::exception& e) { Rcpp::stop(e.what()); }
 }

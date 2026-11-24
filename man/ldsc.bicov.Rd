@@ -26,10 +26,10 @@ optional `wLD`); all panel SNPs.}
 
 \item{M}{Number of panel SNPs (`NULL`: rows of `LDSC`).}
 
-\item{two.step}{Chi-square cutoff: the intercepts are estimated from SNPs
-with \eqn{\chi^2 <} `two.step` (both traits for the cross-trait fit), the
-slopes from all SNPs. `NULL` (default) = one step (the step-1 selection on
-\eqn{\chi^2} biases the intercepts upward).}
+\item{two.step}{Chi-square cutoff: the intercepts are estimated with the
+statistics truncated at `two.step` (each \eqn{|z|} at \eqn{\sqrt{}}`two.step` for the
+cross-trait fit; all SNPs kept), the slopes from the full statistics.
+`NULL` (default) = one step.}
 
 \item{z.max}{Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.}
 }
