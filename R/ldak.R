@@ -74,7 +74,8 @@ write_eigen_bin <- function(file, U, lambda, cutoff = 1) {
 #'   `Neighbours`, `Tagging` = \eqn{t_j}, `Weight`, `MAF`, `Exp_Heritability`,
 #'   then one \eqn{v_{jc}} column per category), `ssums` (category x category:
 #'   expected heritability that category `q2` contributes to SNPs of category
-#'   `q`), `counts` (panel SNPs per category), `M` (panel SNPs) and `weights`.
+#'   `q`), `counts` (panel SNPs per category), `M` (panel SNPs), `weights` and
+#'   `annot_var` (variance of each annotation column over the panel; ridge weights in [sumher()]).
 #' @export
 ldak.tagging <- function(eigen.files, snp.info, annot = NULL, alpha = -0.25, weights = c("thin", "none"),
                          thin.r2 = 0.98, n.ref = NULL, regression.snps = NULL, normalize = TRUE, thresh = 0,
@@ -108,8 +109,9 @@ ldak.tagging <- function(eigen.files, snp.info, annot = NULL, alpha = -0.25, wei
                         Neighbours = rep(sizes, sizes), Tagging = r$tagging, Weight = r$weight,
                         MAF = pmin(snp.info$Freq, 1 - snp.info$Freq), Exp_Heritability = r$exp, V, check.names = FALSE)[keep, ]
   rownames(tagging) <- NULL
+  annot_var <- pmax(colMeans(A^2) - colMeans(A)^2, 0)
   structure(list(tagging = tagging, ssums = ssums, counts = colSums(member), M = M, M.reg = sum(keep),
-                 alpha = alpha, weights = weights), class = "ldak_tagging")
+                 alpha = alpha, weights = weights, annot_var = annot_var), class = "ldak_tagging")
 }
 
 #' Read an LDAK tagging file (output of `ldak --calc-tagging`)
@@ -188,6 +190,16 @@ write_ldak_tagging <- function(tag, file) {
 #' @param se `"information"` (inverse observed information, LDAK default) or
 #'   `"jackknife"` (delete-one-block over `nblock` contiguous blocks).
 #' @param nblock Blocks for the jackknife.
+#' @param ridge Ridge penalty on the annotation coefficients, as in [ldsc.strat()] (default `TRUE`):
+#'   \eqn{\ell(\theta) - \lambda u \sum_c v_c \theta_c^2}, \eqn{v_c} the variance of annotation
+#'   column \eqn{c} over the panel (`tag$annot_var`; the all-ones Base column has \eqn{v = 0} and the
+#'   intercept is not penalised, so with only the Base column the fit is unpenalised), \eqn{u} the median
+#'   of \eqn{I_{cc} / v_c} at the unpenalised fit (\eqn{I} the observed information).
+#' @param lambda Ridge parameter on the scale of `lambda.grid`; `NULL` chooses it by leave-one-block-out
+#'   cross-validation over `nblock` contiguous blocks: the criterion is minus the held-out log-likelihood,
+#'   with each leave-one-block-out fit and the held-out likelihood taken from the second-order expansion of
+#'   the likelihood at the unpenalised fit.
+#' @param lambda.grid Candidate values (the [ldsc.strat()] grid).
 #' @param tol,maxiter Convergence tolerance on the log-likelihood and iteration limit.
 #' @return A list (\eqn{s} = the weighted mean sample size, \eqn{\mathrm{ssums}} from the tagging):
 #' \describe{
@@ -202,10 +214,14 @@ write_ldak_tagging <- function(tag, file) {
 #'   \item{`Enrichment`}{`Share` = `Category` / `h2`; `Expected` = proportion of panel SNPs in
 #'     the column; `Enrichment` = `Share / Expected` (LDAK `.enrich`).}
 #'   \item{`intercept`}{\eqn{1 + s a} (1 when `intercept = FALSE`).}
-#'   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details.}
+#'   \item{`lambda`, `cv`}{chosen ridge parameter and the cross-validation table (criterion minus its
+#'     minimum); `NA` / `NULL` without ridge. SEs are for the chosen \eqn{\lambda} held fixed
+#'     (information: \eqn{H^{-1} I H^{-1}}, \eqn{H = I + 2P}).}
+#'   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
 #' }
 #' @export
 sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("information", "jackknife"), nblock = 200,
+                   ridge = TRUE, lambda = NULL, lambda.grid = c(0, 10^seq(-6, 2, length.out = 49)),
                    tol = 1e-3, maxiter = 100) {
   se <- match.arg(se)
   gwas <- as.data.frame(gwas); tg <- tag$tagging
@@ -221,23 +237,29 @@ sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("informati
   scale <- sum(n / stag) / sum(1 / stag)
   Tm <- cbind(n / scale * V, if (intercept) n / scale); storage.mode(Tm) <- "double"
   K <- ncol(Tm)
+  pen.d <- rep(0, K)
+  if (ridge && Q > 1) {
+    if (is.null(tag$annot_var)) warning("the tagging has no annotation variances (read from a file?); ridge is off") else pen.d[seq_len(Q)] <- tag$annot_var
+  }
+  use.ridge <- any(pen.d > 0)
   grp <- integer(0)
-  if (se == "jackknife") {
+  if (se == "jackknife" || (use.ridge && is.null(lambda))) {
     B <- .n_groups(length(S), nblock); size <- floor(length(S) / min(nblock, length(S))); lens <- rep(size, min(nblock, length(S)))
     if (B > length(lens)) lens <- c(lens, length(S) - sum(lens)) else lens[length(lens)] <- lens[length(lens)] + length(S) - sum(lens)
     grp <- rep.int(seq_along(lens) - 1L, lens)
   }
-  fit <- sumher_cpp(S, Tm, stag, grp, tol, as.integer(maxiter))
+  fit <- sumher_cpp(S, Tm, stag, grp, pen.d, if (is.null(lambda)) NaN else lambda, as.numeric(lambda.grid),
+                    se == "jackknife", tol, as.integer(maxiter))
   if (!fit$converged) warning("SumHer did not converge in ", maxiter, " iterations")
   th <- as.vector(fit$theta)
-  # theta -> per-category h2 (theta_c ssums_cc / s), category-carried h2 (sum_c' theta_c' ssums_cc' / s), total
+  # theta -> per-column h2 (theta_c ssums_cc / s), category h2 (sum_c' theta_c' ssums_cc' / s), total
   Jh <- cbind(diag(diag(ss) / scale, Q), matrix(0, Q, K - Q))
   Jc <- cbind(ss / scale, matrix(0, Q, K - Q))
   Jt <- colSums(Jh)
   est <- function(t) c(as.vector(Jh %*% t), as.vector(Jc %*% t), sum(Jt * t), if (intercept) t[K])
   e0 <- est(th); tot <- e0[2 * Q + 1]
   if (se == "information") {
-    Vt <- solve(fit$AI)
+    Vt <- fit$V
     Jall <- rbind(Jh, Jc, Jt, if (intercept) c(rep(0, K - 1), 1))
     sd0 <- sqrt(pmax(diag(Jall %*% Vt %*% t(Jall)), 0))
     share.sd <- sapply(seq_len(Q), function(q) {
@@ -257,6 +279,7 @@ sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("informati
        Enrichment = data.frame(Category = cats, Share = e0[Q + 1:Q] / tot, Share.se = share.sd, Expected = expct,
                                Enrichment = e0[Q + 1:Q] / tot / expct, Enrichment.se = share.sd / expct),
        intercept = if (intercept) c(estimate = 1 + e0[length(e0)], se = sd0[length(sd0)]) else c(estimate = 1, se = 0),
+       lambda = fit$lambda, cv = if (length(fit$cv)) data.frame(lambda = lambda.grid, cv = fit$cv) else NULL,
        loglik = fit$loglik, z.max = z.max, M.reg = length(S), se.method = se)
 }
 

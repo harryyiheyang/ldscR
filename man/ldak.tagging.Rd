@@ -55,7 +55,8 @@ A list of class `ldak_tagging`: `tagging` (`SNP`, `A1`, `A2`,
   `Neighbours`, `Tagging` = \eqn{t_j}, `Weight`, `MAF`, `Exp_Heritability`,
   then one \eqn{v_{jc}} column per category), `ssums` (category x category:
   expected heritability that category `q2` contributes to SNPs of category
-  `q`), `counts` (panel SNPs per category), `M` (panel SNPs) and `weights`.
+  `q`), `counts` (panel SNPs per category), `M` (panel SNPs), `weights` and
+  `annot_var` (variance of each annotation column over the panel; ridge weights in [sumher()]).
 }
 \description{
 Computes, for every regression SNP \eqn{j}, the quantities SumHer regresses

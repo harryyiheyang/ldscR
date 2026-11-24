@@ -11,6 +11,9 @@ sumher(
   z.max = NULL,
   se = c("information", "jackknife"),
   nblock = 200,
+  ridge = TRUE,
+  lambda = NULL,
+  lambda.grid = c(0, 10^seq(-6, 2, length.out = 49)),
   tol = 0.001,
   maxiter = 100
 )
@@ -30,6 +33,19 @@ sumher(
 
 \item{nblock}{Blocks for the jackknife.}
 
+\item{ridge}{Ridge penalty on the annotation coefficients, as in [ldsc.strat()] (default `TRUE`):
+\eqn{\ell(\theta) - \lambda u \sum_c v_c \theta_c^2}, \eqn{v_c} the variance of annotation
+column \eqn{c} over the panel (`tag$annot_var`; the all-ones Base column has \eqn{v = 0} and the
+intercept is not penalised, so with only the Base column the fit is unpenalised), \eqn{u} the median
+of \eqn{I_{cc} / v_c} at the unpenalised fit (\eqn{I} the observed information).}
+
+\item{lambda}{Ridge parameter on the scale of `lambda.grid`; `NULL` chooses it by leave-one-block-out
+cross-validation over `nblock` contiguous blocks: the criterion is minus the held-out log-likelihood,
+with each leave-one-block-out fit and the held-out likelihood taken from the second-order expansion of
+the likelihood at the unpenalised fit.}
+
+\item{lambda.grid}{Candidate values (the [ldsc.strat()] grid).}
+
 \item{tol, maxiter}{Convergence tolerance on the log-likelihood and iteration limit.}
 }
 \value{
@@ -46,7 +62,10 @@ A list (\eqn{s} = the weighted mean sample size, \eqn{\mathrm{ssums}} from the t
   \item{`Enrichment`}{`Share` = `Category` / `h2`; `Expected` = proportion of panel SNPs in
     the column; `Enrichment` = `Share / Expected` (LDAK `.enrich`).}
   \item{`intercept`}{\eqn{1 + s a} (1 when `intercept = FALSE`).}
-  \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details.}
+  \item{`lambda`, `cv`}{chosen ridge parameter and the cross-validation table (criterion minus its
+    minimum); `NA` / `NULL` without ridge. SEs are for the chosen \eqn{\lambda} held fixed
+    (information: \eqn{H^{-1} I H^{-1}}, \eqn{H = I + 2P}).}
+  \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
 }
 }
 \description{

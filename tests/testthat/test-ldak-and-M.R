@@ -84,3 +84,21 @@ test_that("rg is 0 whenever an estimated h2 is not positive", {
   expect_true(all(is.finite(f$bootstrap$rg)))
   if (f$h22 <= 0) expect_equal(f$rg, 0)
 })
+
+test_that("sumher ridge: no effect with only the Base column, lambda chosen with annotations", {
+  set.seed(8)
+  M <- 8000; N <- 1e4
+  A <- matrix(rbinom(M * 10, 1, 0.1), M, 10, dimnames = list(NULL, paste0("a", 1:10)))
+  P <- cbind(Base = 1, A)
+  mk <- function(P) structure(list(
+    tagging = data.frame(SNP = paste0("s", 1:M), A1 = "A", A2 = "C", Neighbours = 1, Tagging = 1, Weight = 1, MAF = 0.3,
+                         Exp_Heritability = 1, P, check.names = FALSE),
+    ssums = crossprod((P != 0) * 1, P), counts = colSums(P != 0), M = M, M.reg = M,
+    annot_var = pmax(colMeans(P^2) - colMeans(P)^2, 0)), class = "ldak_tagging")
+  g <- data.frame(SNP = paste0("s", 1:M), Zscore = rnorm(M) * sqrt(1 + N * 0.3 / M), N = N)
+  b <- mk(P[, 1, drop = FALSE])
+  expect_equal(sumher(g, b, ridge = TRUE, z.max = Inf)$h2$h2, sumher(g, b, ridge = FALSE, z.max = Inf)$h2$h2)
+  f <- sumher(g, mk(P), ridge = TRUE, z.max = Inf, nblock = 40)
+  expect_true(f$lambda %in% c(0, 10^seq(-6, 2, length.out = 49)))
+  expect_equal(nrow(f$cv), 50)
+})

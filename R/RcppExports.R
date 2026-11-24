@@ -5,8 +5,8 @@ ldak_tagging_cpp <- function(files, offset, freq, A, alpha, weight_mode, w_user,
     .Call(`_ldscR_ldak_tagging_cpp`, files, offset, freq, A, alpha, weight_mode, w_user, thin_r2, n_ref, reg, normalize, thresh, chunk, threads)
 }
 
-sumher_cpp <- function(S, Tm, stag, group, tol, maxiter) {
-    .Call(`_ldscR_sumher_cpp`, S, Tm, stag, group, tol, maxiter)
+sumher_cpp <- function(S, Tm, stag, group, pen_d, lambda, lambda_grid, jackknife, tol, maxiter) {
+    .Call(`_ldscR_sumher_cpp`, S, Tm, stag, group, pen_d, lambda, lambda_grid, jackknife, tol, maxiter)
 }
 
 ldsc_strat_cpp <- function(z, N, L, wL, Apanel, block, jackknife, counts, intercept, lo, hi, two_step, z_max, n_reweight, ridge, lambda, lambda_grid, tol) {

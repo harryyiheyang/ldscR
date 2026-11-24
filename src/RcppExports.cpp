@@ -36,8 +36,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sumher_cpp
-Rcpp::List sumher_cpp(const Eigen::Map<Eigen::VectorXd> S, const Eigen::Map<Eigen::MatrixXd> Tm, const Eigen::Map<Eigen::VectorXd> stag, const Rcpp::IntegerVector& group, double tol, int maxiter);
-RcppExport SEXP _ldscR_sumher_cpp(SEXP SSEXP, SEXP TmSEXP, SEXP stagSEXP, SEXP groupSEXP, SEXP tolSEXP, SEXP maxiterSEXP) {
+Rcpp::List sumher_cpp(const Eigen::Map<Eigen::VectorXd> S, const Eigen::Map<Eigen::MatrixXd> Tm, const Eigen::Map<Eigen::VectorXd> stag, const Rcpp::IntegerVector& group, const Eigen::Map<Eigen::VectorXd> pen_d, double lambda, const Rcpp::NumericVector& lambda_grid, bool jackknife, double tol, int maxiter);
+RcppExport SEXP _ldscR_sumher_cpp(SEXP SSEXP, SEXP TmSEXP, SEXP stagSEXP, SEXP groupSEXP, SEXP pen_dSEXP, SEXP lambdaSEXP, SEXP lambda_gridSEXP, SEXP jackknifeSEXP, SEXP tolSEXP, SEXP maxiterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -45,9 +45,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Eigen::Map<Eigen::MatrixXd> >::type Tm(TmSEXP);
     Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type stag(stagSEXP);
     Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type pen_d(pen_dSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type lambda_grid(lambda_gridSEXP);
+    Rcpp::traits::input_parameter< bool >::type jackknife(jackknifeSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< int >::type maxiter(maxiterSEXP);
-    rcpp_result_gen = Rcpp::wrap(sumher_cpp(S, Tm, stag, group, tol, maxiter));
+    rcpp_result_gen = Rcpp::wrap(sumher_cpp(S, Tm, stag, group, pen_d, lambda, lambda_grid, jackknife, tol, maxiter));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -150,7 +154,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ldscR_ldak_tagging_cpp", (DL_FUNC) &_ldscR_ldak_tagging_cpp, 14},
-    {"_ldscR_sumher_cpp", (DL_FUNC) &_ldscR_sumher_cpp, 6},
+    {"_ldscR_sumher_cpp", (DL_FUNC) &_ldscR_sumher_cpp, 10},
     {"_ldscR_ldsc_strat_cpp", (DL_FUNC) &_ldscR_ldsc_strat_cpp, 18},
     {"_ldscR_ldsc_univ_cpp", (DL_FUNC) &_ldscR_ldsc_univ_cpp, 11},
     {"_ldscR_ldsc_bicov_cpp", (DL_FUNC) &_ldscR_ldsc_bicov_cpp, 13},
