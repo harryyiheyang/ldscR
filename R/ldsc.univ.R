@@ -18,7 +18,9 @@
 #'   SNPs the GWAS reports.
 #' @param two.step Chi-square cutoff for the two-step estimator: the intercept
 #'   is estimated from SNPs with \eqn{\chi^2 <} `two.step`, then the slope from
-#'   all SNPs with the intercept fixed. `NULL` fits both in one step.
+#'   all SNPs with the intercept fixed. `NULL` (default) fits both in one step: the
+#'   step-1 selection on \eqn{\chi^2} drops SNPs (it does not truncate), which pulls the
+#'   step-1 fit flat and biases the intercept upward.
 #' @param z.max Z-scores are truncated (not removed) to `[-z.max, z.max]`.
 #'   `NULL` uses \eqn{\sqrt{\max(80, 0.001 N_{max})}}, the ldsc chi-square cap.
 #'
@@ -32,7 +34,7 @@
 #' @useDynLib ldscR, .registration = TRUE
 #' @importFrom Rcpp evalCpp
 #' @export
-ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL) {
+ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = NULL, z.max = NULL) {
   gwas <- as.data.frame(gwas); LDSC <- as.data.frame(LDSC)
   if (is.null(M)) M <- length(unique(LDSC$SNP))
   if (!"wLD" %in% colnames(LDSC)) LDSC$wLD <- LDSC$LDSC

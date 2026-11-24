@@ -11,7 +11,7 @@ ldsc.bicov(
   sampling.time = 0,
   nblock = 500,
   M = NULL,
-  two.step = 30,
+  two.step = NULL,
   z.max = NULL
 )
 }
@@ -28,7 +28,8 @@ optional `wLD`); all panel SNPs.}
 
 \item{two.step}{Chi-square cutoff: the intercepts are estimated from SNPs
 with \eqn{\chi^2 <} `two.step` (both traits for the cross-trait fit), the
-slopes from all SNPs. `NULL` = one step.}
+slopes from all SNPs. `NULL` (default) = one step (the step-1 selection on
+\eqn{\chi^2} biases the intercepts upward).}
 
 \item{z.max}{Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.}
 }

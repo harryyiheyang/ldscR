@@ -14,7 +14,8 @@
 #' @param M Number of panel SNPs (`NULL`: rows of `LDSC`).
 #' @param two.step Chi-square cutoff: the intercepts are estimated from SNPs
 #'   with \eqn{\chi^2 <} `two.step` (both traits for the cross-trait fit), the
-#'   slopes from all SNPs. `NULL` = one step.
+#'   slopes from all SNPs. `NULL` (default) = one step (the step-1 selection on
+#'   \eqn{\chi^2} biases the intercepts upward).
 #' @param z.max Truncation of both Z-scores; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}.
 #'
 #' @details For bivariate normal \eqn{(z_1, z_2)} with variances
@@ -30,7 +31,7 @@
 #'   every bootstrap replicate. With bootstrap,
 #'   `$bootstrap` holds the replicate vectors and `block.counts`.
 #' @export
-ldsc.bicov = function(gwas1, gwas2, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL) {
+ldsc.bicov = function(gwas1, gwas2, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = NULL, z.max = NULL) {
   gwas1 <- as.data.frame(gwas1); gwas2 <- as.data.frame(gwas2); LDSC <- as.data.frame(LDSC)
   if (is.null(M)) M <- length(unique(LDSC$SNP))
   if (!"wLD" %in% colnames(LDSC)) LDSC$wLD <- LDSC$LDSC
