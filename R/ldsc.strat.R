@@ -120,6 +120,6 @@ ldsc.strat = function(gwas, SLDSC, annot, sampling.time = 0, nblock = 500, inter
   list(H2_summary = data.frame(Category = c("Total", "Residual", annot_names[-1]), Estimate = c(h2, tau * acov), SE = c(h2.se, tau.se * acov)),
        Parameter_summary = data.frame(Parameter = c("Intercept", "Residual", annot_names[-1]), Estimate = c(intercept, tau), SE = c(intercept.se, tau.se)),
        Enrichment_summary = Enrichment_summary, SE_method = se.method, n_truncated = r$n_truncated, z.max = z.max,
-       M = M, M.reg = n, lambda = r$lambda, cv = if (length(r$cv)) data.frame(lambda = lambda.grid, cv = r$cv) else NULL,
+       M = M, lambda = r$lambda, cv = if (length(r$cv)) data.frame(lambda = lambda.grid, cv = r$cv) else NULL,
        annot_var = as.vector(r$avar))
 }

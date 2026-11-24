@@ -45,7 +45,7 @@
 #'
 #' @details Weights \eqn{w_j^{-1} = (1 + \ell_{1j} N_{1j} h_{21}/M)(1 + \ell_{2j} N_{2j} h_{22}/M) + \mu_j^2},
 #'   \eqn{\mu_j} the fitted mean, updated twice. Computed in C++ (`src/ldsc_univ_bicov.cpp`).
-#' @return A data.frame with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `M` (panel SNPs), `M.reg`.
+#' @return A data.frame with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `M` (panel SNPs).
 #' @export
 ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran, sampling.time = 0, nblock = 500, M = NULL) {
   gwas1 <- as.data.frame(gwas1); gwas2 <- as.data.frame(gwas2)
@@ -60,5 +60,5 @@ ldsc.trans = function(gwas1, gwas2, h21, h22, LDSC1, LDSC2, LDSC_Tran, sampling.
                       as.numeric(LDSC_Tran$LDSC[match(common, LDSC_Tran$SNP)]), as.numeric(M), h21, h22,
                       as.integer(nblock), cnt, 2L, 1e-12)
   se <- .ldsc_bootstrap_sd(r$boot)
-  data.frame(ecov = r$b[1], ecov.se = se[1], gcov = r$b[2], gcov.se = se[2], M = M, M.reg = length(common))
+  data.frame(ecov = r$b[1], ecov.se = se[1], gcov = r$b[2], gcov.se = se[2], M = M)
 }

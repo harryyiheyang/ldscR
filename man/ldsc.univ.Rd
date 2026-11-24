@@ -41,7 +41,7 @@ all SNPs with the intercept fixed. `NULL` fits both in one step.}
 }
 \value{
 A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
-  (panel SNPs) and `M.reg` (regression SNPs). With bootstrap, `$bootstrap`
+  (panel SNPs). With bootstrap, `$bootstrap`
   holds the replicate vectors and `block.counts`.
 }
 \description{

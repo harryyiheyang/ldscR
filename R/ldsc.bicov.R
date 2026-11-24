@@ -25,7 +25,9 @@
 #' updated twice; the univariate intercepts in \eqn{v_1, v_2} are set to 1.
 #'
 #' @return A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `h21`,
-#'   `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg`. With bootstrap,
+#'   `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`. `rg` is set to 0 when
+#'   \eqn{h^2_1 \le 0} or \eqn{h^2_2 \le 0} (no genetic variance), in the full fit and in
+#'   every bootstrap replicate. With bootstrap,
 #'   `$bootstrap` holds the replicate vectors and `block.counts`.
 #' @export
 ldsc.bicov = function(gwas1, gwas2, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.step = 30, z.max = NULL) {
@@ -41,17 +43,18 @@ ldsc.bicov = function(gwas1, gwas2, LDSC, sampling.time = 0, nblock = 500, M = N
   r <- ldsc_bicov_cpp(as.numeric(gwas1$Zscore), as.numeric(gwas2$Zscore), as.numeric(gwas1$N), as.numeric(gwas2$N),
                       as.numeric(LDSC$LDSC), as.numeric(LDSC$wLD), as.numeric(M),
                       z.max, .two_step_arg(two.step), as.integer(nblock), cnt, 2L, 1e-12)
-  rg <- r$b[2] / sqrt(r$h21 * r$h22)
+  .rg <- function(g, a, b) ifelse(a > 0 & b > 0, g / sqrt(pmax(a, 0) * pmax(b, 0)), 0)
+  rg <- .rg(r$b[2], r$h21, r$h22)
   se <- .ldsc_bootstrap_sd(r$boot)
   h.se <- c(NA_real_, NA_real_); rg.se <- NA_real_; rg.b <- NULL
   if (sampling.time > 0) {
     h.se <- c(stats::sd(r$boot1[, 2]), stats::sd(r$boot2[, 2]))
-    rg.b <- r$boot[, 2] / sqrt(r$boot1[, 2] * r$boot2[, 2])
-    rg.se <- stats::sd(rg.b[is.finite(rg.b)])
+    rg.b <- .rg(r$boot[, 2], r$boot1[, 2], r$boot2[, 2])
+    rg.se <- stats::sd(rg.b)
   }
   result <- data.frame(ecov = r$b[1], ecov.se = se[1], gcov = r$b[2], gcov.se = se[2],
                        h21 = r$h21, h21.se = h.se[1], h22 = r$h22, h22.se = h.se[2],
-                       rg = rg, rg.se = rg.se, M = M, M.reg = length(common))
+                       rg = rg, rg.se = rg.se, M = M)
   if (sampling.time > 0) {
     boot <- list(ecov = r$boot[, 1], gcov = r$boot[, 2], h21 = r$boot1[, 2], h22 = r$boot2[, 2], rg = rg.b, block.counts = cnt)
     result <- .new_ldsc_bootstrap_result(result, boot)

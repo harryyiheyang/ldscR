@@ -63,7 +63,7 @@ estimation.}
 \item{M}{Number of panel SNPs of the cross-ancestry LD score (`NULL`: rows of `LDSC_Tran`).}
 }
 \value{
-A data.frame with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `M` (panel SNPs), `M.reg`.
+A data.frame with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `M` (panel SNPs).
 }
 \description{
 The `ldsc.trans` function performs bivariate genetic covariance estimation

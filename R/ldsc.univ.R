@@ -27,7 +27,7 @@
 #' the weights is set to 1.
 #'
 #' @return A `data.frame` with `intercept`, `intercept.se`, `h2`, `h2.se`, `M`
-#'   (panel SNPs) and `M.reg` (regression SNPs). With bootstrap, `$bootstrap`
+#'   (panel SNPs). With bootstrap, `$bootstrap`
 #'   holds the replicate vectors and `block.counts`.
 #' @useDynLib ldscR, .registration = TRUE
 #' @importFrom Rcpp evalCpp
@@ -44,7 +44,7 @@ ldsc.univ = function(gwas, LDSC, sampling.time = 0, nblock = 500, M = NULL, two.
   r <- ldsc_univ_cpp(as.numeric(gwas$Zscore), as.numeric(gwas$N), as.numeric(LDSC$LDSC), as.numeric(LDSC$wLD),
                      as.numeric(M), z.max, .two_step_arg(two.step), as.integer(nblock), cnt, 3L, 1e-12)
   se <- .ldsc_bootstrap_sd(r$boot)
-  result <- data.frame(intercept = r$b[1], intercept.se = se[1], h2 = r$b[2], h2.se = se[2], M = M, M.reg = nrow(gwas))
+  result <- data.frame(intercept = r$b[1], intercept.se = se[1], h2 = r$b[2], h2.se = se[2], M = M)
   if (sampling.time > 0) result <- .new_ldsc_bootstrap_result(result, list(intercept = r$boot[, 1], h2 = r$boot[, 2], block.counts = cnt))
   result
 }

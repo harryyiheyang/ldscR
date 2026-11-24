@@ -11,7 +11,6 @@ test_that("M defaults to the panel size, so dropping GWAS SNPs does not rescale 
     f2 <- ldsc.univ(g[keep, ], ld, two.step = NULL, z.max = Inf)
   }))
   expect_equal(f2$M, M)
-  expect_equal(f2$M.reg, length(keep))
   expect_lt(abs(f2$h2 / f1$h2 - 1), 0.25)
 })
 
@@ -70,4 +69,18 @@ test_that("ldsc.bicov estimates h2 internally and gives rg with a bootstrap SE",
   expect_equal(f$h21.se, u$h2.se, tolerance = 1e-10)
   expect_true(is.finite(f$rg.se) && f$rg.se > 0)
   expect_equal(f$rg, f$gcov / sqrt(f$h21 * f$h22))
+})
+
+test_that("rg is 0 whenever an estimated h2 is not positive", {
+  set.seed(4)
+  M <- 3000
+  ld <- data.frame(SNP = paste0("rs", 1:M), LDSC = rgamma(M, 4, 0.5))
+  g1 <- data.frame(SNP = ld$SNP, Zscore = rnorm(M) * sqrt(1 + 1e4 * 0.3 * ld$LDSC / M), N = 1e4)
+  g2 <- data.frame(SNP = ld$SNP, Zscore = rnorm(M), N = 1e4)
+  set.seed(2)
+  f <- ldsc.bicov(g1, g2, ld, sampling.time = 40, nblock = 30)
+  neg <- f$bootstrap$h21 <= 0 | f$bootstrap$h22 <= 0
+  expect_true(all(f$bootstrap$rg[neg] == 0))
+  expect_true(all(is.finite(f$bootstrap$rg)))
+  if (f$h22 <= 0) expect_equal(f$rg, 0)
 })

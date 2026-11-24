@@ -46,7 +46,7 @@ test_that("ldsc.univ exposes the existing bootstrap results", {
   expect_true(is.data.frame(fit))
   expect_identical(
     names(fit),
-    c("intercept", "intercept.se", "h2", "h2.se", "M", "M.reg")
+    c("intercept", "intercept.se", "h2", "h2.se", "M")
   )
   expect_length(fit$bootstrap$intercept, sampling.time)
   expect_length(fit$bootstrap$h2, sampling.time)
@@ -80,7 +80,7 @@ test_that("ldsc.bicov exposes the existing bootstrap results", {
   ))
 
   expect_true(is.data.frame(fit))
-  expect_identical(names(fit), c("ecov", "ecov.se", "gcov", "gcov.se", "h21", "h21.se", "h22", "h22.se", "rg", "rg.se", "M", "M.reg"))
+  expect_identical(names(fit), c("ecov", "ecov.se", "gcov", "gcov.se", "h21", "h21.se", "h22", "h22.se", "rg", "rg.se", "M"))
   expect_length(fit$bootstrap$ecov, sampling.time)
   expect_length(fit$bootstrap$gcov, sampling.time)
   expect_equal(sd(fit$bootstrap$ecov), fit$ecov.se)

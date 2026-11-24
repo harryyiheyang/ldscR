@@ -34,7 +34,9 @@ slopes from all SNPs. `NULL` = one step.}
 }
 \value{
 A `data.frame` with `ecov`, `ecov.se`, `gcov`, `gcov.se`, `h21`,
-  `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`, `M.reg`. With bootstrap,
+  `h21.se`, `h22`, `h22.se`, `rg`, `rg.se`, `M`. `rg` is set to 0 when
+  \eqn{h^2_1 \le 0} or \eqn{h^2_2 \le 0} (no genetic variance), in the full fit and in
+  every bootstrap replicate. With bootstrap,
   `$bootstrap` holds the replicate vectors and `block.counts`.
 }
 \description{
