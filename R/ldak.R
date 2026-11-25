@@ -201,8 +201,10 @@ write_ldak_tagging <- function(tag, file) {
 #' @param intercept Estimate the additive confounding term \eqn{a}
 #'   (LDAK `--intercept`; LDAK's default for `--sum-hers` is `FALSE`).
 #' @param z.max Truncation of \eqn{|Z|}; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}, `Inf` = none (LDAK default).
-#' @param se `"information"` (inverse observed information, LDAK default) or
-#'   `"jackknife"` (delete-one-block over `nblock` contiguous blocks).
+#' @param se `"information"` (inverse observed information, LDAK default), `"jackknife"`
+#'   (delete-one-block over `nblock` contiguous blocks, each leave-one-out fit = one Newton step from the
+#'   full fit, so it costs one pass over the SNPs) or `"jackknife_full"` (each leave-one-out fit iterated to
+#'   convergence; slow).
 #' @param nblock Blocks for the jackknife.
 #' @param ridge Ridge penalty on the annotation coefficients, as in [ldsc.strat()] (default `TRUE`):
 #'   \eqn{\ell(\theta) - \lambda u \sum_c v_c \theta_c^2}, \eqn{v_c} the variance of annotation
@@ -231,7 +233,7 @@ write_ldak_tagging <- function(tag, file) {
 #'   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
 #' }
 #' @export
-sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("information", "jackknife"), nblock = 200,
+sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("information", "jackknife", "jackknife_full"), nblock = 200,
                    ridge = TRUE, lambda = NULL, lambda.grid = c(0, 10^seq(-6, 2, length.out = 49)),
                    tol = 1e-3, maxiter = 100) {
   se <- match.arg(se)
@@ -254,13 +256,14 @@ sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("informati
   }
   use.ridge <- any(pen.d > 0)
   grp <- integer(0)
-  if (se == "jackknife" || (use.ridge && is.null(lambda))) {
+  jk <- se != "information"
+  if (jk || (use.ridge && is.null(lambda))) {
     B <- .n_groups(length(S), nblock); size <- floor(length(S) / min(nblock, length(S))); lens <- rep(size, min(nblock, length(S)))
     if (B > length(lens)) lens <- c(lens, length(S) - sum(lens)) else lens[length(lens)] <- lens[length(lens)] + length(S) - sum(lens)
     grp <- rep.int(seq_along(lens) - 1L, lens)
   }
   fit <- sumher_cpp(S, Tm, stag, grp, pen.d, if (is.null(lambda)) NaN else lambda, as.numeric(lambda.grid),
-                    se == "jackknife", tol, as.integer(maxiter))
+                    jk, se == "jackknife_full", tol, as.integer(maxiter))
   if (!fit$converged) warning("SumHer did not converge in ", maxiter, " iterations")
   th <- as.vector(fit$theta)
   # theta -> per-column h2 (theta_c ssums_cc / s), category h2 (sum_c' theta_c' ssums_cc' / s), total
@@ -273,7 +276,7 @@ sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("informati
   cats <- colnames(ss)
   binary <- if (is.null(tag$binary)) rep(TRUE, Q) else tag$binary
   icpt <- if (intercept) 1 + th[K] else 1
-  if (se == "information") {
+  if (!jk) {
     Vtau <- fit$V[seq_len(Q), seq_len(Q), drop = FALSE] / scale^2
     reps <- NULL; .jk <- NULL
     icpt.se <- if (intercept) sqrt(max(fit$V[K, K], 0)) else 0

@@ -9,7 +9,7 @@ sumher(
   tag,
   intercept = FALSE,
   z.max = NULL,
-  se = c("information", "jackknife"),
+  se = c("information", "jackknife", "jackknife_full"),
   nblock = 200,
   ridge = TRUE,
   lambda = NULL,
@@ -28,8 +28,10 @@ sumher(
 
 \item{z.max}{Truncation of \eqn{|Z|}; `NULL` = \eqn{\sqrt{\max(80, 0.001 N_{max})}}, `Inf` = none (LDAK default).}
 
-\item{se}{`"information"` (inverse observed information, LDAK default) or
-`"jackknife"` (delete-one-block over `nblock` contiguous blocks).}
+\item{se}{`"information"` (inverse observed information, LDAK default), `"jackknife"`
+(delete-one-block over `nblock` contiguous blocks, each leave-one-out fit = one Newton step from the
+full fit, so it costs one pass over the SNPs) or `"jackknife_full"` (each leave-one-out fit iterated to
+convergence; slow).}
 
 \item{nblock}{Blocks for the jackknife.}
 

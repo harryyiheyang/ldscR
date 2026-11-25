@@ -230,7 +230,7 @@ double median_of(std::vector<double> v) {
 Rcpp::List sumher_cpp(const Eigen::Map<Eigen::VectorXd> S, const Eigen::Map<Eigen::MatrixXd> Tm,
                       const Eigen::Map<Eigen::VectorXd> stag, const Rcpp::IntegerVector& group,
                       const Eigen::Map<Eigen::VectorXd> pen_d, double lambda, const Rcpp::NumericVector& lambda_grid,
-                      bool jackknife, double tol, int maxiter) {
+                      bool jackknife, bool jk_full, double tol, int maxiter) {
   const int n = static_cast<int>(S.size()), K = static_cast<int>(Tm.cols());
   const Eigen::VectorXd S_ = S, iw = stag.cwiseInverse(), pd = pen_d;
   const Eigen::MatrixXd T_ = Tm;
@@ -285,10 +285,28 @@ Rcpp::List sumher_cpp(const Eigen::Map<Eigen::VectorXd> S, const Eigen::Map<Eige
   Eigen::MatrixXd jk(0, K);
   if (jackknife && have_groups) {
     jk.resize(B, K);
-    for (int b = 0; b < B; ++b) {
-      std::vector<char> use(n);
-      for (int j = 0; j < n; ++j) use[j] = group[j] != b;
-      jk.row(b) = sumher_solve(S_, T_, iw, use, full.theta, P, tol, maxiter).theta.transpose();
+    if (jk_full) {
+      for (int b = 0; b < B; ++b) {
+        std::vector<char> use(n);
+        for (int j = 0; j < n; ++j) use[j] = group[j] != b;
+        jk.row(b) = sumher_solve(S_, T_, iw, use, full.theta, P, tol, maxiter).theta.transpose();
+      }
+    } else {
+      // one Newton step from the full fit for each leave-one-group-out objective (as the cross-validation)
+      const Eigen::VectorXd E1 = expect_of(T_, full.theta);
+      std::vector<Eigen::VectorXd> gb(B, Eigen::VectorXd::Zero(K));
+      std::vector<Eigen::MatrixXd> Ab(B, Eigen::MatrixXd::Zero(K, K));
+      for (int j = 0; j < n; ++j) {
+        const double e = E1[j], gj = 0.5 * (S_[j] - e) * iw[j] / (e * e), hj = (S_[j] - 0.5 * e) * iw[j] / (e * e * e);
+        const Eigen::VectorXd t = T_.row(j).transpose();
+        gb[group[j]].noalias() += gj * t;
+        Ab[group[j]].noalias() += hj * t * t.transpose();
+      }
+      Eigen::VectorXd gall = Eigen::VectorXd::Zero(K);
+      Eigen::MatrixXd Aall = Eigen::MatrixXd::Zero(K, K);
+      for (int b = 0; b < B; ++b) { gall += gb[b]; Aall += Ab[b]; }
+      for (int b = 0; b < B; ++b)
+        jk.row(b) = (full.theta + (Aall - Ab[b] + 2.0 * P).ldlt().solve(gall - gb[b] - 2.0 * P * full.theta)).transpose();
     }
   }
   // information-based covariance at fixed lambda: H^-1 AI H^-1 with H = AI + 2P (= AI^-1 without ridge)
