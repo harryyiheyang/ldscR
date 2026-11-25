@@ -123,8 +123,9 @@ ldak.tagging <- function(eigen.files, snp.info, annot = NULL, alpha = -0.25, wei
                         MAF = pmin(snp.info$Freq, 1 - snp.info$Freq), Exp_Heritability = r$exp, V, check.names = FALSE)[keep, ]
   rownames(tagging) <- NULL
   annot_var <- pmax(colMeans(A^2) - colMeans(A)^2, 0)
+  binary <- apply(A, 2, function(v) all(v %in% c(0, 1)))
   structure(list(tagging = tagging, ssums = ssums, counts = colSums(member), M = M, M.reg = sum(keep),
-                 alpha = alpha, weights = weights, annot_var = annot_var), class = "ldak_tagging")
+                 alpha = alpha, weights = weights, annot_var = annot_var, binary = binary), class = "ldak_tagging")
 }
 
 #' Read an LDAK tagging file (output of `ldak --calc-tagging`)
@@ -214,22 +215,19 @@ write_ldak_tagging <- function(tag, file) {
 #'   the likelihood at the unpenalised fit.
 #' @param lambda.grid Candidate values (the [ldsc.strat()] grid).
 #' @param tol,maxiter Convergence tolerance on the log-likelihood and iteration limit.
-#' @return A list (\eqn{s} = the weighted mean sample size, \eqn{\mathrm{ssums}} from the tagging):
+#' @return A list with the same tables as [ldsc.strat()]:
 #' \describe{
-#'   \item{`h2`}{total SNP heritability \eqn{\sum_c \theta_c \mathrm{ssums}_{cc} / s} and SE
-#'     (LDAK `Her_All`).}
-#'   \item{`Heritability`}{per column, \eqn{\theta_c \mathrm{ssums}_{cc} / s}: the heritability
-#'     of the coefficient of column \eqn{c} alone (LDAK `.hers`, `Her_A*`).}
-#'   \item{`Category`}{heritability of the SNPs with \eqn{a_{jc} \neq 0}, adding the
-#'     contributions of all columns: \eqn{\sum_{c'} \theta_{c'} \mathrm{ssums}_{cc'} / s}
-#'     (LDAK `.cats`; LDAK's annotation mode counts every SNP in every column, here
-#'     membership is \eqn{a_{jc} \neq 0}, as in LDAK's partition mode).}
-#'   \item{`Enrichment`}{`Share` = `Category` / `h2`; `Expected` = proportion of panel SNPs in
-#'     the column; `Enrichment` = `Share / Expected` (LDAK `.enrich`).}
-#'   \item{`intercept`}{\eqn{1 + s a} (1 when `intercept = FALSE`).}
-#'   \item{`lambda`, `cv`}{chosen ridge parameter and the cross-validation table (criterion minus its
-#'     minimum); `NA` / `NULL` without ridge. SEs are for the chosen \eqn{\lambda} held fixed
-#'     (information: \eqn{H^{-1} I H^{-1}}, \eqn{H = I + 2P}).}
+#'   \item{`H2_summary`}{`Total` SNP heritability \eqn{\sum_c \tau_c \mathrm{ssums}_{cc}} (LDAK
+#'     `Her_All`), then per column \eqn{\tau_c \mathrm{ssums}_{cc}}, the heritability of the
+#'     coefficient of column \eqn{c} alone (LDAK `Her_A*`).}
+#'   \item{`Parameter_summary`}{`Intercept` (\eqn{1 + s a}; 1 when `intercept = FALSE`), then
+#'     \eqn{\tau_c = \theta_c / s}, heritability per unit of expected heritability \eqn{q}.}
+#'   \item{`Partition`}{as in [ldsc.strat()]: `Prop_SNPs`, `h2` = heritability of the SNPs with
+#'     \eqn{a_{jc} \neq 0} including overlapping columns (\eqn{(\mathrm{ssums}\,\tau)_c}, LDAK
+#'     `.cats`), `Prop_h2`, `Enrichment`, `Enrichment_p`, `tau`, `tau.se`, `tau_z`, `tau_p`,
+#'     all with SEs from the jackknife or the information matrix (`se`).}
+#'   \item{`lambda`, `cv`}{ridge parameter and cross-validation table (`NA` / `NULL` without
+#'     ridge); SEs are for the chosen \eqn{\lambda} held fixed.}
 #'   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
 #' }
 #' @export
@@ -269,29 +267,30 @@ sumher <- function(gwas, tag, intercept = FALSE, z.max = NULL, se = c("informati
   Jh <- cbind(diag(diag(ss) / scale, Q), matrix(0, Q, K - Q))
   Jc <- cbind(ss / scale, matrix(0, Q, K - Q))
   Jt <- colSums(Jh)
-  est <- function(t) c(as.vector(Jh %*% t), as.vector(Jc %*% t), sum(Jt * t), if (intercept) t[K])
-  e0 <- est(th); tot <- e0[2 * Q + 1]
+  # tau_c = theta_c / s: heritability per unit of expected heritability q, so that h2_c(own) = tau_c ssums_cc,
+  # h2 of the SNPs of category c = (ssums tau)_c and total h2 = sum_c tau_c ssums_cc
+  tau <- th[seq_len(Q)] / scale
+  cats <- colnames(ss)
+  binary <- if (is.null(tag$binary)) rep(TRUE, Q) else tag$binary
+  icpt <- if (intercept) 1 + th[K] else 1
   if (se == "information") {
-    Vt <- fit$V
-    Jall <- rbind(Jh, Jc, Jt, if (intercept) c(rep(0, K - 1), 1))
-    sd0 <- sqrt(pmax(diag(Jall %*% Vt %*% t(Jall)), 0))
-    share.sd <- sapply(seq_len(Q), function(q) {
-      gr <- (Jc[q, ] - e0[Q + q] / tot * Jt) / tot
-      sqrt(max(as.numeric(t(gr) %*% Vt %*% gr), 0))
-    })
+    Vtau <- fit$V[seq_len(Q), seq_len(Q), drop = FALSE] / scale^2
+    reps <- NULL; .jk <- NULL
+    icpt.se <- if (intercept) sqrt(max(fit$V[K, K], 0)) else 0
+    tot.se <- sqrt(max(as.numeric(t(diag(ss)) %*% Vtau %*% diag(ss)), 0))
+    own.se <- sqrt(pmax(diag(Vtau), 0)) * diag(ss)
   } else {
-    reps <- t(apply(fit$jack, 1, est)); B <- nrow(reps)
+    Vtau <- NULL
+    reps <- fit$jack[, seq_len(Q), drop = FALSE] / scale; B <- nrow(reps)
     .jk <- function(v) sqrt((B - 1) / B * sum((v - mean(v))^2))
-    sd0 <- apply(reps, 2, .jk)
-    share.sd <- sapply(seq_len(Q), function(q) .jk(reps[, Q + q] / reps[, 2 * Q + 1]))
+    icpt.se <- if (intercept) .jk(fit$jack[, K]) else 0
+    tot.se <- .jk(as.vector(reps %*% diag(ss)))
+    own.se <- apply(reps, 2, .jk) * diag(ss)
   }
-  cats <- colnames(ss); expct <- tag$counts / tag$M
-  list(h2 = data.frame(h2 = tot, se = sd0[2 * Q + 1]),
-       Heritability = data.frame(Category = cats, h2 = e0[1:Q], se = sd0[1:Q]),
-       Category = data.frame(Category = cats, h2 = e0[Q + 1:Q], se = sd0[Q + 1:Q]),
-       Enrichment = data.frame(Category = cats, Share = e0[Q + 1:Q] / tot, Share.se = share.sd, Expected = expct,
-                               Enrichment = e0[Q + 1:Q] / tot / expct, Enrichment.se = share.sd / expct),
-       intercept = if (intercept) c(estimate = 1 + e0[length(e0)], se = sd0[length(sd0)]) else c(estimate = 1, se = 0),
+  Partition <- .partition_table(cats, tau, ss, diag(ss), tag$counts, tag$M, binary, reps = reps, se_fun = .jk, V = Vtau)
+  list(H2_summary = data.frame(Category = c("Total", cats), Estimate = c(sum(tau * diag(ss)), tau * diag(ss)), SE = c(tot.se, own.se)),
+       Parameter_summary = data.frame(Parameter = c("Intercept", cats), Estimate = c(icpt, tau), SE = c(icpt.se, Partition$tau.se)),
+       Partition = Partition,
        lambda = fit$lambda, cv = if (length(fit$cv)) data.frame(lambda = lambda.grid, cv = fit$cv) else NULL,
        loglik = fit$loglik, z.max = z.max, M.reg = length(S), se.method = se)
 }

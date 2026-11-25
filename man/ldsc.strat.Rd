@@ -68,9 +68,12 @@ leave-one-block-out cross-validation.}
 \value{
 A list with `H2_summary` (total and per-column \eqn{\tau_c \sum_j a_{jc}}),
   `Parameter_summary` (row `Intercept` = \eqn{a}, then \eqn{\tau_c}),
-  `Enrichment_summary` (for 0/1 annotations: share of SNPs, share of
-  \eqn{h^2} carried by the SNPs in the category including overlaps,
-  \eqn{(A^\top A \tau)_c / h^2}, and their ratio), `SE_method`, and with
+  `Partition` (one row per column, every SE from the same replicates: `Prop_SNPs` =
+  \eqn{M_c/M}; `h2` = \eqn{(A^\top A \tau)_c}, the heritability of the SNPs of category
+  \eqn{c} including overlapping columns; `Prop_h2` = \eqn{h^2_c/h^2}; `Enrichment` =
+  `Prop_h2/Prop_SNPs`; `Enrichment_p` = two-sided p of
+  \eqn{h^2_c/M_c - (h^2-h^2_c)/(M-M_c) = 0}, as ldsc `--overlap-annot`; `tau`, `tau.se`,
+  `tau_z`, `tau_p`; partition columns `NA` for non-0/1 annotations), `SE_method`, and with
   `ridge = TRUE` the chosen `lambda` and the cross-validation table `cv`.
 }
 \description{

@@ -51,7 +51,7 @@ test_that("sumher recovers h2 under its own model", {
   E <- 1 + N * h2 * v / ssum
   g <- data.frame(SNP = tag$tagging$SNP, Zscore = rnorm(M) * sqrt(E), N = N)
   r <- sumher(g, tag, z.max = Inf)
-  expect_lt(abs(r$h2$h2 - h2), 4 * r$h2$se)
+  expect_lt(abs(r$H2_summary$Estimate[1] - h2), 4 * r$H2_summary$SE[1])
 })
 
 test_that("ldsc.bicov estimates h2 internally and gives rg with a bootstrap SE", {
@@ -97,7 +97,7 @@ test_that("sumher ridge: no effect with only the Base column, lambda chosen with
     annot_var = pmax(colMeans(P^2) - colMeans(P)^2, 0)), class = "ldak_tagging")
   g <- data.frame(SNP = paste0("s", 1:M), Zscore = rnorm(M) * sqrt(1 + N * 0.3 / M), N = N)
   b <- mk(P[, 1, drop = FALSE])
-  expect_equal(sumher(g, b, ridge = TRUE, z.max = Inf)$h2$h2, sumher(g, b, ridge = FALSE, z.max = Inf)$h2$h2)
+  expect_equal(sumher(g, b, ridge = TRUE, z.max = Inf)$H2_summary$Estimate[1], sumher(g, b, ridge = FALSE, z.max = Inf)$H2_summary$Estimate[1])
   f <- sumher(g, mk(P), ridge = TRUE, z.max = Inf, nblock = 40)
   expect_true(f$lambda %in% c(0, 10^seq(-6, 2, length.out = 49)))
   expect_equal(nrow(f$cv), 50)

@@ -49,22 +49,19 @@ the likelihood at the unpenalised fit.}
 \item{tol, maxiter}{Convergence tolerance on the log-likelihood and iteration limit.}
 }
 \value{
-A list (\eqn{s} = the weighted mean sample size, \eqn{\mathrm{ssums}} from the tagging):
+A list with the same tables as [ldsc.strat()]:
 \describe{
-  \item{`h2`}{total SNP heritability \eqn{\sum_c \theta_c \mathrm{ssums}_{cc} / s} and SE
-    (LDAK `Her_All`).}
-  \item{`Heritability`}{per column, \eqn{\theta_c \mathrm{ssums}_{cc} / s}: the heritability
-    of the coefficient of column \eqn{c} alone (LDAK `.hers`, `Her_A*`).}
-  \item{`Category`}{heritability of the SNPs with \eqn{a_{jc} \neq 0}, adding the
-    contributions of all columns: \eqn{\sum_{c'} \theta_{c'} \mathrm{ssums}_{cc'} / s}
-    (LDAK `.cats`; LDAK's annotation mode counts every SNP in every column, here
-    membership is \eqn{a_{jc} \neq 0}, as in LDAK's partition mode).}
-  \item{`Enrichment`}{`Share` = `Category` / `h2`; `Expected` = proportion of panel SNPs in
-    the column; `Enrichment` = `Share / Expected` (LDAK `.enrich`).}
-  \item{`intercept`}{\eqn{1 + s a} (1 when `intercept = FALSE`).}
-  \item{`lambda`, `cv`}{chosen ridge parameter and the cross-validation table (criterion minus its
-    minimum); `NA` / `NULL` without ridge. SEs are for the chosen \eqn{\lambda} held fixed
-    (information: \eqn{H^{-1} I H^{-1}}, \eqn{H = I + 2P}).}
+  \item{`H2_summary`}{`Total` SNP heritability \eqn{\sum_c \tau_c \mathrm{ssums}_{cc}} (LDAK
+    `Her_All`), then per column \eqn{\tau_c \mathrm{ssums}_{cc}}, the heritability of the
+    coefficient of column \eqn{c} alone (LDAK `Her_A*`).}
+  \item{`Parameter_summary`}{`Intercept` (\eqn{1 + s a}; 1 when `intercept = FALSE`), then
+    \eqn{\tau_c = \theta_c / s}, heritability per unit of expected heritability \eqn{q}.}
+  \item{`Partition`}{as in [ldsc.strat()]: `Prop_SNPs`, `h2` = heritability of the SNPs with
+    \eqn{a_{jc} \neq 0} including overlapping columns (\eqn{(\mathrm{ssums}\,\tau)_c}, LDAK
+    `.cats`), `Prop_h2`, `Enrichment`, `Enrichment_p`, `tau`, `tau.se`, `tau_z`, `tau_p`,
+    all with SEs from the jackknife or the information matrix (`se`).}
+  \item{`lambda`, `cv`}{ridge parameter and cross-validation table (`NA` / `NULL` without
+    ridge); SEs are for the chosen \eqn{\lambda} held fixed.}
   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
 }
 }
