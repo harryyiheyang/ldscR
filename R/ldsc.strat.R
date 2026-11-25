@@ -53,12 +53,15 @@
 #'
 #' @return A list with `H2_summary` (total and per-column \eqn{\tau_c \sum_j a_{jc}}),
 #'   `Parameter_summary` (row `Intercept` = \eqn{a}, then \eqn{\tau_c}),
-#'   `Partition` (one row per column, every SE from the same replicates: `Prop_SNPs` =
-#'   \eqn{M_c/M}; `h2` = \eqn{(A^\top A \tau)_c}, the heritability of the SNPs of category
-#'   \eqn{c} including overlapping columns; `Prop_h2` = \eqn{h^2_c/h^2}; `Enrichment` =
-#'   `Prop_h2/Prop_SNPs`; `Enrichment_p` = two-sided p of
-#'   \eqn{h^2_c/M_c - (h^2-h^2_c)/(M-M_c) = 0}, as ldsc `--overlap-annot`; `tau`, `tau.se`,
-#'   `tau_z`, `tau_p`; partition columns `NA` for non-0/1 annotations), `SE_method`, and with
+#'   `Partition` (one row per column; every SE from the same replicates):
+#'   additive decomposition `h2` = \eqn{	au_c \sum_j a_{jc}} (the columns add up to the total
+#'   \eqn{h^2}; `Base` = \eqn{	au_{Base} M}), `Prop_h2` = `h2` / total, `Prop_SNPs` =
+#'   \eqn{\sum_j a_{jc} / M}, `tau`, `tau.se`, `tau_z`, `tau_p`; then, for 0/1 columns only, the
+#'   ldsc `--overlap-annot` quantities (not additive across overlapping columns):
+#'   `h2_overlap` = \eqn{(A^	op A 	au)_c} (h2 of the SNPs in category \eqn{c}),
+#'   `Prop_h2_overlap`, `Enrichment_overlap` = `Prop_h2_overlap / Prop_SNPs` and
+#'   `Enrichment_overlap_p` (two-sided p of \eqn{h^2_c/M_c - (h^2-h^2_c)/(M-M_c) = 0}),
+#'   `replicates` (jackknife / bootstrap coefficient estimates), `SE_method`, and with
 #'   `ridge = TRUE` the chosen `lambda` and the cross-validation table `cv`.
 #'
 #' @export
@@ -117,7 +120,7 @@ ldsc.strat = function(gwas, SLDSC, annot, sampling.time = 0, nblock = 500, inter
                                 reps = if (nrow(est) > 1) est[, -1, drop = FALSE] else NULL, se_fun = if (nrow(est) > 1) .se else NULL)
   list(H2_summary = data.frame(Category = c("Total", "Residual", annot_names[-1]), Estimate = c(h2, tau * acov), SE = c(h2.se, tau.se * acov)),
        Parameter_summary = data.frame(Parameter = c("Intercept", "Residual", annot_names[-1]), Estimate = c(intercept, tau), SE = c(intercept.se, tau.se)),
-       Partition = Partition, SE_method = se.method, n_truncated = r$n_truncated, z.max = z.max,
+       Partition = Partition, replicates = if (nrow(est) > 1) est else NULL, SE_method = se.method, n_truncated = r$n_truncated, z.max = z.max,
        M = M, lambda = r$lambda, cv = if (length(r$cv)) data.frame(lambda = lambda.grid, cv = r$cv) else NULL,
        annot_var = as.vector(r$avar))
 }

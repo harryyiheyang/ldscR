@@ -58,10 +58,10 @@ A list with the same tables as [ldsc.strat()]:
     coefficient of column \eqn{c} alone (LDAK `Her_A*`).}
   \item{`Parameter_summary`}{`Intercept` (\eqn{1 + s a}; 1 when `intercept = FALSE`), then
     \eqn{\tau_c = \theta_c / s}, heritability per unit of expected heritability \eqn{q}.}
-  \item{`Partition`}{as in [ldsc.strat()]: `Prop_SNPs`, `h2` = heritability of the SNPs with
-    \eqn{a_{jc} \neq 0} including overlapping columns (\eqn{(\mathrm{ssums}\,\tau)_c}, LDAK
-    `.cats`), `Prop_h2`, `Enrichment`, `Enrichment_p`, `tau`, `tau.se`, `tau_z`, `tau_p`,
-    all with SEs from the jackknife or the information matrix (`se`).}
+  \item{`Partition`}{as in [ldsc.strat()]: additive `h2` = \eqn{	au_c \mathrm{ssums}_{cc}} (adds up
+    to the total), `Prop_h2`, `Prop_SNPs`, `tau` (z, p), and for 0/1 columns the overlap quantities
+    `h2_overlap` = \eqn{(\mathrm{ssums}\,	au)_c} (LDAK `.cats`), `Prop_h2_overlap`,
+    `Enrichment_overlap` (and its p), all with SEs from the jackknife or the information matrix.}
   \item{`lambda`, `cv`}{ridge parameter and cross-validation table (`NA` / `NULL` without
     ridge); SEs are for the chosen \eqn{\lambda} held fixed.}
   \item{`loglik`, `z.max`, `M.reg`, `se.method`}{fit details (`loglik` is the penalised objective).}
